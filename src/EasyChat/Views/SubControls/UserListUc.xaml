@@ -19,20 +19,25 @@
             </Setter>
         </Style>
     </UserControl.Resources>
-    <ListBox Name="UserListBox" ItemsSource="{Binding Users}">
+    <ListBox Name="UserListBox"
+             ItemsSource="{Binding Users}"
+             ScrollViewer.CanContentScroll="True"
+             VirtualizingPanel.IsVirtualizing="True"
+             VirtualizingPanel.VirtualizationMode="Recycling">
         <i:Interaction.Triggers>
             <i:EventTrigger EventName="SelectionChanged">
                 <i:InvokeCommandAction Command="{Binding SelectedCommand}"
-                                       CommandParameter="{Binding ElementName=UserListBox, Path=SelectedItem}" />
-            </i:EventTrigger>
-            <i:EventTrigger EventName="MouseRightButtonDown">
-                <i:InvokeCommandAction Command="{Binding RightClickCommand}"
                                        CommandParameter="{Binding ElementName=UserListBox, Path=SelectedItem}" />
             </i:EventTrigger>
         </i:Interaction.Triggers>
         <ListBox.ItemTemplate>
             <DataTemplate>
                 <Border Name="UserBorder" Background="{Binding Color}" Height="50">
+                    <Border.InputBindings>
+                        <MouseBinding Gesture="RightClick"
+                                      Command="{Binding DataContext.RightClickCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                      CommandParameter="{Binding}" />
+                    </Border.InputBindings>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="50"/>
@@ -44,7 +49,12 @@
                             <RowDefinition  Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <Border Grid.Column="0" Grid.RowSpan="2">
+                        <Border Grid.Column="0" Grid.RowSpan="2" Cursor="Hand">
+                            <Border.InputBindings>
+                                <MouseBinding Gesture="LeftClick"
+                                              Command="{Binding DataContext.AvatarClickCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                              CommandParameter="{Binding}" />
+                            </Border.InputBindings>
                             <Ellipse Width="40" Height="40" >
                                 <Ellipse.Fill>
                                     <ImageBrush ImageSource="{Binding Image}" />
@@ -53,7 +63,7 @@
                         </Border>
                         <Border Grid.Column="1" Grid.Row="0">
                             <StackPanel Orientation="Vertical" MaxWidth ="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Border}, Converter={StaticResource WidthPercentageConverter}, ConverterParameter=0.99}">
-                                <TextBlock Text="{Binding NickName}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                <TextBlock Text="{Binding DisplayName}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                                      VerticalAlignment="Center" FontWeight="Bold"  Padding="3" FontSize="16"/>
                             </StackPanel>
                         </Border>

@@ -18,7 +18,7 @@
         <s:BindingProxy x:Key="View" Data="{Binding RelativeSource={RelativeSource AncestorType=Window}}" />
     </UserControl.Resources>
     <tray:NotifyIcon Icon="{Binding TrayIconSource}" 
-                     ToolTip="EasyChat">
+                     ToolTip="{Binding TrayToolTip}">
         <i:Interaction.Triggers>
             <i:EventTrigger EventName="LeftClick">
                 <i:InvokeCommandAction Command="{Binding OpenCommand}"

@@ -39,6 +39,16 @@ public class MsgModel
     /// 文件或者图片消息
     /// </summary>
     public bool isImageOrFile { get; set; }
+
+    /// <summary>
+    /// 是否是图片文件
+    /// </summary>
+    public bool isImage { get; set; }
+
+    /// <summary>
+    /// 图片缩略图Base64
+    /// </summary>
+    public string thumbnailBase64 { get; set; } = "";
     
     /// <summary>
     /// 文件名，主要用来获取文件后缀

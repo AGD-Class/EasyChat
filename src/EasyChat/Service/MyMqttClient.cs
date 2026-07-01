@@ -161,7 +161,6 @@ public class MyMqttClient : SingletonBase<MyMqttClient>
             .WithTopic(topic)
             .WithPayload(msg)
             .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtMostOnce)
-            .WithRetainFlag()
             .Build();
 
         try

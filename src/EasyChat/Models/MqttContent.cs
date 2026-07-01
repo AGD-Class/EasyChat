@@ -78,9 +78,14 @@ public static class MqttContent
             Time = msgModel.sendTime.ToString(),
             IsMyMessage = msgModel.userModel.uid == myUid,
             IsFile = msgModel.isImageOrFile,
+            IsImage = msgModel.isImage,
+            ThumbnailBase64 = msgModel.thumbnailBase64,
             FilePath = msgModel.clientFilePath,
             FileSize = msgModel.fileSize,
-            FileName = msgModel.fileName
+            FileName = msgModel.fileName,
+            SenderUid = msgModel.userModel.uid,
+            SenderIpAddress = msgModel.userModel.ipAddress,
+            SenderPort = msgModel.userModel.port
         };
     }
 

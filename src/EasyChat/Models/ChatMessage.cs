@@ -1,6 +1,8 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using System.Windows.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using EasyChat.Handle;
+using EasyChat.Utilities;
 
 namespace EasyChat.Models;
 
@@ -25,13 +27,30 @@ public partial class ChatMessage : ObservableObject
 
     [ObservableProperty] private bool isFile;
 
+    [ObservableProperty] private bool isImage;
+
     [ObservableProperty] private string fileName = "";
 
     [ObservableProperty] private string fileSize = "";
 
     [ObservableProperty] private string filePath = "";
 
+    [ObservableProperty] private string thumbnailBase64 = "";
+
+    [ObservableProperty] private ImageSource? thumbnailImage;
+
     [ObservableProperty] private bool isReceived;
+
+    [ObservableProperty] private string senderUid = "";
+
+    [ObservableProperty] private string senderIpAddress = "";
+
+    [ObservableProperty] private int senderPort = MqttContent.SOCKET_PORT;
+
+    partial void OnThumbnailBase64Changed(string value)
+    {
+        ThumbnailImage = ChatHelpers.ThumbnailBase64ToImageSource(value);
+    }
 
     [RelayCommand]
     private void FileReceive()

@@ -25,9 +25,12 @@ public partial class TrayViewModel : ObservableObject
         _blinkTimer.Tick += (sender, e) => ToggleIcon();
         evt.StartBlinkEvent += StartBlinking;
         evt.StopBlinkEvent += StopBlinking;
+        evt.UnreadPreviewChanged += ChangeUnreadPreview;
     }
 
     [ObservableProperty] private ImageSource _trayIconSource = new BitmapImage(new Uri("pack://application:,,,/Resources/favicon.ico"));
+
+    [ObservableProperty] private string _trayToolTip = "EasyChat";
 
     private void StartBlinking()
     {
@@ -52,6 +55,11 @@ public partial class TrayViewModel : ObservableObject
         }
 
         _isIconVisible = !_isIconVisible;
+    }
+
+    private void ChangeUnreadPreview(string preview)
+    {
+        TrayToolTip = string.IsNullOrWhiteSpace(preview) ? "EasyChat" : preview;
     }
 
     [RelayCommand]

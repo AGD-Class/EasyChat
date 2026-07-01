@@ -109,8 +109,13 @@
     </UserControl.Resources>
 
     <!-- 聊天消息列表 -->
-    <ListBox Name="MessageListBox" ItemsSource="{Binding Messages}" 
-             HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top">
+    <ListBox Name="MessageListBox"
+             ItemsSource="{Binding Messages}"
+             HorizontalContentAlignment="Stretch"
+             VerticalContentAlignment="Top"
+             ScrollViewer.CanContentScroll="True"
+             VirtualizingPanel.IsVirtualizing="True"
+             VirtualizingPanel.VirtualizationMode="Recycling">
         <ListBox.ItemTemplate>
             <DataTemplate>
                 <!-- 使用Grid控制头像和消息气泡的布局 -->
@@ -183,20 +188,29 @@
                                                 </Style.Triggers>
                                             </Style>
                                         </Button.Style>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition  Height="Auto"/>
-                                                    <RowDefinition  Height="Auto"/>
-                                                </Grid.RowDefinitions>
-                                                <TextBlock Grid.Row="0"  Text="{Binding FileName}" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Row="1"  Text="{Binding FileSize}" VerticalAlignment="Bottom"/>
-                                                <Image Grid.Row="0" Grid.Column="1" Width="20" Height="20" Source="{Binding Image}" Margin="5,0,5,0"/>
+                                        <StackPanel Orientation="Horizontal" MaxWidth="260">
+                                            <Grid Width="72" Height="54" Margin="0,0,8,0">
+                                                <Image Source="{Binding ThumbnailImage}"
+                                                       Stretch="UniformToFill"
+                                                       Visibility="{Binding IsImage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                <Border CornerRadius="6"
+                                                        Background="#15000000"
+                                                        Visibility="{Binding IsImage, Converter={StaticResource BooleanToVisibilityReverseConverter}}">
+                                                    <TextBlock Text="FILE"
+                                                               FontSize="12"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Border>
                                             </Grid>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding FileName}"
+                                                           TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           MaxWidth="160"/>
+                                                <TextBlock Text="{Binding FileSize}"
+                                                           Foreground="Gray"
+                                                           FontSize="11"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Button>
                                     

@@ -9,6 +9,7 @@ namespace EasyChat.Handle
         public event Action? StopBlinkEvent;
         public event Action? ClearNewMessage;
         public event Action<ChatMessage>? FileReceive;
+        public event Action<string>? UnreadPreviewChanged;
 
         public void StartBlink()
         {
@@ -28,6 +29,11 @@ namespace EasyChat.Handle
         public void ReceiveFile(ChatMessage message)
         {
             FileReceive?.Invoke(message);
+        }
+
+        public void UpdateUnreadPreview(string preview)
+        {
+            UnreadPreviewChanged?.Invoke(preview);
         }
     }
 }

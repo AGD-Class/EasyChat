@@ -1,36 +1,40 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
+using System.Text;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using EasyChat.Controls;
 using EasyChat.Handle;
 using EasyChat.Models;
 using EasyChat.Service;
+using EasyChat.Utilities;
 using EasyChat.ViewModels.SubVms;
-using System.IO;
-using Wpf.Ui.Appearance;
 using Wpf.Ui;
-using System.Windows.Forms;
-using System.Windows.Documents;
-using System.Windows.Controls;
+using Wpf.Ui.Appearance;
+using Application = System.Windows.Application;
+using DialogResult = System.Windows.Forms.DialogResult;
+using OpenFileDialog = System.Windows.Forms.OpenFileDialog;
+using SaveFileDialog = System.Windows.Forms.SaveFileDialog;
 
 namespace EasyChat.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
     private readonly MyMqttClient _myClient = MyMqttClient.Instance;
-    private EventHelper _eventHelper = EventHelper.Instance;
+    private readonly EventHelper _eventHelper = EventHelper.Instance;
+    private readonly ThemeService _themeService = new();
+    private readonly Dictionary<string, BindingList<ChatMessage>> _chatMessageDic = new();
+    private readonly SocketServer _socketServer;
     private string _sendTopic = string.Empty;
-    ThemeService _themeService = new ThemeService();
-    // 新消息总数
-    private int _allNewMessageCount = 0;
-    SocketServer _socketServer;
-    // <uid , uid对应全部消息>
-    private readonly Dictionary<string, List<ChatMessage>> _chatMessageDic = new Dictionary<string, List<ChatMessage>>();
+    private int _allNewMessageCount;
+    private bool _isTheme;
 
     public MainViewModel()
     {
-        // 客户端名绑定界面
         var nickName = string.IsNullOrEmpty(MqttContent.USER_NAME) ? _myClient.MyClientUid : MqttContent.USER_NAME;
         MyChatModel = new ChatModel
         {
@@ -40,9 +44,11 @@ public partial class MainViewModel : ObservableObject
             IpAddress = MqttContent.GetLocalIp(MqttContent.IPADDRESS),
             Port = MqttContent.GetLocalOkPort(MqttContent.SOCKET_PORT, null)
         };
-        UserListVm.Users.Add(MyChatModel);
+
+        UserListVm.Add(MyChatModel);
+        EnsureMessageList(MyChatModel.Uid);
         InitGroup();
-        //启动客户端
+
         _myClient.StartClient(MqttContent.IPADDRESS, MyChatModel);
         _socketServer = SocketServer.GetInstance(MyChatModel.Port);
         _myClient.OnlinePersonEvent += ClientChangeOnlinePerson;
@@ -50,60 +56,46 @@ public partial class MainViewModel : ObservableObject
         _myClient.FileSendEvent += ClientChangeReceiveFile;
 
         UserListVm.OnSelected += UserSelect;
-        UserListVm.RightClicked += Nothing;
+        UserListVm.RightClicked += ShowContactCard;
+        UserListVm.AvatarClicked += UserAvatarClick;
         _eventHelper.ClearNewMessage += ClearNewMessage;
         _eventHelper.FileReceive += DealReceiveImageOrFile;
 
         _myClient.AddTopic(MqttContent.GROUP);
-        GC.Collect();
     }
 
     #region 事件回调方法
+
     /// <summary>
-    ///  客户端修改页面在线用户
-    ///  群聊不作为在线用户
+    /// 客户端修改页面在线用户，群聊不作为在线用户。
     /// </summary>
-    /// <param name="msgModel"></param>
     private void ClientChangeOnlinePerson(MsgModel msgModel)
     {
         if (msgModel == null)
         {
             return;
         }
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+
+        Application.Current.Dispatcher.Invoke(() =>
         {
-            // 自己和群聊不删，其他都删(基本都是离线用户)
-            for(int i = UserListVm.Users.Count - 1; i >= 0; i--)
-            {
-                if (UserListVm.Users[i].Uid != MyChatModel.Uid && !UserListVm.Users[i].IsGroup)
-                {
-                    UserListVm.Users.RemoveAt(i);
-                }
-            }
+            UserListVm.RemoveWhere(user => user.Uid != MyChatModel.Uid && !user.IsGroup);
             foreach (var userModel in msgModel.userModels)
             {
-                if (UserListVm.Users.Any(m => m.Uid == userModel.uid))
-                {
-                    continue;
-                }
-                UserListVm.Users.Add(MqttContent.ToChatModel(userModel));
-                if (!_chatMessageDic.ContainsKey(userModel.uid))
-                {
-                    _chatMessageDic.Add(userModel.uid, new List<ChatMessage>());
-                }
+                UserListVm.AddOrUpdate(MqttContent.ToChatModel(userModel));
+                EnsureMessageList(userModel.uid);
             }
-            UserListVm.Users = new BindingList<ChatModel>(UserListVm.Users.OrderByDescending(m => m.Uid == MyChatModel.Uid).ThenBy(m => m.Uid).ToList());
+
+            UserListVm.SortByDescending(user => user.Uid == MyChatModel.Uid, user => user.DisplayName);
         });
     }
 
     /// <summary>
-    ///  客户端接受消息
+    /// 客户端接受消息。
     /// </summary>
-    /// <param name="newMsg"></param>
     private void ClientChangeReceiveMsg(MsgModel newMsg)
     {
-        ChatMessage chats = MqttContent.ToChatMessage(newMsg, MyChatModel.Uid);
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        var chats = CreateChatMessage(newMsg);
+        Application.Current.Dispatcher.Invoke(() =>
         {
             if (newMsg.isGroupMsg)
             {
@@ -114,184 +106,336 @@ public partial class MainViewModel : ObservableObject
                 DealPersonMessage(newMsg, chats);
             }
 
-            if (!string.IsNullOrEmpty(ChatObj.Uid))
-            {
-                ChatMessages.Messages = new BindingList<ChatMessage>(_chatMessageDic[ChatObj.Uid]);
-            }
+            BindCurrentMessages();
         });
     }
 
     /// <summary>
-    /// 客户端接收文件
+    /// 客户端接收文件发送确认。
     /// </summary>
-    /// <param name="newMsg"></param>
     private void ClientChangeReceiveFile(MsgModel newMsg)
     {
         if (newMsg.isServerReceived)
         {
-            DealSendImageOrFile(newMsg.clientFilePath);
+            DealSendImageOrFile(newMsg);
         }
     }
-    /// <summary>
-    /// 用户选择回调
-    /// </summary>
-    /// <param name="chatModel"></param>
+
     private void UserSelect(ChatModel chatModel)
     {
         if (chatModel == null)
         {
             return;
         }
+
         try
         {
             _sendTopic = chatModel.Uid;
-            _allNewMessageCount -= chatModel.MessageCount;
-            if (_allNewMessageCount == 0)
-            {
-                _eventHelper.StopBlink();
-            }
+            _allNewMessageCount = Math.Max(0, _allNewMessageCount - chatModel.MessageCount);
             chatModel.MessageCount = 0;
             ChatObj = chatModel;
-            ChatMessages.Messages = new BindingList<ChatMessage>(_chatMessageDic[chatModel.Uid]);
+            BindCurrentMessages();
+
+            if (_allNewMessageCount == 0)
+            {
+                ClearUnreadPreview();
+            }
         }
-        catch (Exception)
+        catch
         {
         }
     }
-    
-    /// <summary>
-    /// 清空未读消息
-    /// </summary>
+
     private void ClearNewMessage()
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        Application.Current.Dispatcher.Invoke(() =>
         {
-            foreach (var item in UserListVm.Users)
+            foreach (var item in UserListVm.SourceUsers)
             {
                 item.MessageCount = 0;
             }
+
             _allNewMessageCount = 0;
-            _eventHelper.StopBlink();
+            ClearUnreadPreview();
         });
     }
+
     #endregion
 
     #region 私有方法
-    /// <summary>
-    /// 处理群消息
-    /// </summary>
-    /// <param name="newMsg"></param>
-    /// <param name="chats"></param>
+
     private void DealGroupMessage(MsgModel newMsg, ChatMessage chats)
     {
-        if (string.IsNullOrEmpty(newMsg.groupName))
+        var groupName = string.IsNullOrWhiteSpace(newMsg.groupName) ? "群聊" : newMsg.groupName;
+        var group = EnsureGroup(groupName);
+        EnsureMessageList(group.Uid).Add(chats);
+        group.Message = GetMessagePreview(newMsg);
+
+        if (!chats.IsMyMessage && group.Uid != ChatObj.Uid)
         {
-            return;
+            AddUnread(group, chats, newMsg);
         }
-        if (_chatMessageDic.ContainsKey(newMsg.groupName))
-        {
-            _chatMessageDic[newMsg.groupName].Add(chats);
-            if (newMsg.groupName != ChatObj.Uid)
-            {
-                UserListVm.Users.Where(x => x.Uid == newMsg.groupName).First().MessageCount++;
-                _allNewMessageCount++;
-                _eventHelper.StartBlink();
-            }
-        }
-        else
-        {
-            _chatMessageDic.Add(newMsg.groupName, new List<ChatMessage> { chats });
-            _allNewMessageCount++;
-            UserListVm.Users.Where(x => x.Uid == newMsg.groupName).First().MessageCount++;
-            _eventHelper.StartBlink();
-        }
-        UserListVm.Users.Where(x => x.Uid == newMsg.groupName).First().Message =
-            newMsg.isImageOrFile ? MqttContent.FILE_STRING + newMsg.fileName : newMsg.message;
-    }
-    
-    /// <summary>
-    /// 处理私发消息
-    /// </summary>
-    /// <param name="newMsg"></param>
-    /// <param name="chats"></param>
-    private void DealPersonMessage(MsgModel newMsg, ChatMessage chats)
-    {
-        if (_chatMessageDic.ContainsKey(newMsg.userModel.uid))
-        {
-            _chatMessageDic[newMsg.userModel.uid].Add(chats);
-            if (newMsg.userModel.uid != ChatObj.Uid)
-            {
-                UserListVm.Users.Where(x => x.Uid == newMsg.userModel.uid).First().MessageCount++;
-                _allNewMessageCount++;
-                _eventHelper.StartBlink();
-            }
-        }
-        else
-        {
-            _chatMessageDic.Add(newMsg.userModel.uid, new List<ChatMessage> { chats });
-        }
-        UserListVm.Users.Where(x => x.Uid == newMsg.userModel.uid).First().Message =
-            newMsg.isImageOrFile ? MqttContent.FILE_STRING + newMsg.fileName : newMsg.message;
     }
 
-    /// <summary>
-    /// 处理接收文件
-    /// </summary>
-    /// <param name="newMsg"></param>
+    private void DealPersonMessage(MsgModel newMsg, ChatMessage chats)
+    {
+        var senderUid = newMsg.userModel.uid;
+        var chat = UserListVm.FindByUid(senderUid);
+        if (chat == null)
+        {
+            chat = MqttContent.ToChatModel(newMsg.userModel);
+            UserListVm.Add(chat);
+        }
+
+        EnsureMessageList(senderUid).Add(chats);
+        chat.Message = GetMessagePreview(newMsg);
+
+        if (!chats.IsMyMessage && senderUid != ChatObj.Uid)
+        {
+            AddUnread(chat, chats, newMsg);
+        }
+    }
+
     private void DealReceiveImageOrFile(ChatMessage chats)
     {
         try
         {
-            SaveFileDialog saveFileDialog = new SaveFileDialog
+            var saveFileDialog = new SaveFileDialog
             {
                 Title = "选择保存文件的位置",
                 Filter = "All Files (*.*)|*.*",
                 FileName = chats.FileName,
+                InitialDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "")
             };
-            saveFileDialog.InitialDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), ""); ;
-            var result = saveFileDialog.ShowDialog();
-            if (result == DialogResult.OK)
-            {
-                _myClient.SendMsg(MqttContent.FILE, new MsgModel
-                {
-                    userModel = MqttContent.ToUserModel(MyChatModel),
-                    sendTime = DateTime.Now,
-                    message = FlowDocumentToString(SendMsg),
-                    isGroupMsg = ChatObj.IsGroup,
-                    isServerReceived = true,
-                    groupName = ChatObj.GroupName,
-                    isImageOrFile = chats.IsFile,
-                    fileName = chats.FileName,
-                    clientFilePath = chats.FilePath
-                });
-                var localFilePath = saveFileDialog.FileName;
-                if (!string.IsNullOrEmpty(localFilePath))
-                {
-                    _= _socketServer.StartReceiveAsync(localFilePath);
-                }
-            }
-        }
-        catch (Exception)
-        {
-            System.Diagnostics.Debug.WriteLine($"文件处理发生错误");
-        }
 
+            if (saveFileDialog.ShowDialog() != DialogResult.OK)
+            {
+                return;
+            }
+
+            var localFilePath = saveFileDialog.FileName;
+            if (string.IsNullOrEmpty(localFilePath))
+            {
+                return;
+            }
+
+            _ = _socketServer.StartReceiveAsync(localFilePath);
+            _myClient.SendMsg(MqttContent.FILE, new MsgModel
+            {
+                userModel = MqttContent.ToUserModel(MyChatModel),
+                sendTime = DateTime.Now,
+                isServerReceived = true,
+                isImageOrFile = chats.IsFile,
+                isImage = chats.IsImage,
+                thumbnailBase64 = chats.ThumbnailBase64,
+                fileName = chats.FileName,
+                fileSize = chats.FileSize,
+                clientFilePath = chats.FilePath
+            });
+            chats.IsReceived = true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"文件处理发生错误: {ex.Message}");
+        }
     }
 
-    /// <summary>
-    /// 处理发送文件，基于Socket
-    /// </summary>
-    /// <param name="filePath"></param>
-    private void DealSendImageOrFile(string filePath)
+    private void DealSendImageOrFile(MsgModel newMsg)
     {
-        if (!File.Exists(filePath))
+        var filePath = newMsg.clientFilePath;
+        if (!File.Exists(filePath)
+            || string.IsNullOrWhiteSpace(newMsg.userModel.ipAddress)
+            || newMsg.userModel.port <= 0)
         {
-            //System.Diagnostics.Debug.WriteLine("文件不存在");
             return;
         }
-        var sockeClient = SocketClient.GetInctance(ChatObj.IpAddress, ChatObj.Port);
-        _= sockeClient.SendFileAsync(filePath);
+
+        var socketClient = SocketClient.GetInctance(newMsg.userModel.ipAddress, newMsg.userModel.port);
+        _ = socketClient.SendFileAsync(filePath);
     }
+
+    private BindingList<ChatMessage> EnsureMessageList(string uid)
+    {
+        if (!_chatMessageDic.TryGetValue(uid, out var messages))
+        {
+            messages = [];
+            _chatMessageDic.Add(uid, messages);
+        }
+
+        return messages;
+    }
+
+    private ChatModel EnsureGroup(string groupName)
+    {
+        var group = UserListVm.FindByUid(groupName);
+        if (group != null)
+        {
+            return group;
+        }
+
+        group = new ChatModel
+        {
+            Uid = groupName,
+            NickName = groupName,
+            GroupName = groupName,
+            Image = MqttContent.GetRandomImg(),
+            IsGroup = true
+        };
+        UserListVm.Add(group);
+        EnsureMessageList(group.Uid);
+        return group;
+    }
+
+    private ChatMessage CreateChatMessage(MsgModel msgModel)
+    {
+        var chatMessage = MqttContent.ToChatMessage(msgModel, MyChatModel.Uid);
+        var sender = msgModel.userModel.uid == MyChatModel.Uid
+            ? MyChatModel
+            : UserListVm.FindByUid(msgModel.userModel.uid);
+        if (sender != null)
+        {
+            chatMessage.NickName = sender.DisplayName;
+        }
+
+        return chatMessage;
+    }
+
+    private void BindCurrentMessages()
+    {
+        if (!string.IsNullOrEmpty(ChatObj.Uid))
+        {
+            ChatMessages.Messages = EnsureMessageList(ChatObj.Uid);
+        }
+    }
+
+    private void AddUnread(ChatModel chat, ChatMessage chatMessage, MsgModel msgModel)
+    {
+        chat.MessageCount++;
+        _allNewMessageCount++;
+        _eventHelper.StartBlink();
+
+        var senderName = msgModel.isGroupMsg
+            ? chatMessage.NickName ?? chat.DisplayName
+            : chat.DisplayName;
+        UpdateUnreadPreview(ChatHelpers.BuildUnreadPreview(
+            senderName,
+            msgModel.message,
+            msgModel.fileName,
+            msgModel.isImageOrFile));
+    }
+
+    private void UpdateUnreadPreview(string preview)
+    {
+        TaskbarPreviewText = string.IsNullOrWhiteSpace(preview) ? "EasyChat" : preview;
+        _eventHelper.UpdateUnreadPreview(TaskbarPreviewText);
+    }
+
+    private void ClearUnreadPreview()
+    {
+        _eventHelper.StopBlink();
+        UpdateUnreadPreview("EasyChat");
+    }
+
+    private static string GetMessagePreview(MsgModel msgModel)
+    {
+        return msgModel.isImageOrFile ? MqttContent.FILE_STRING + msgModel.fileName : msgModel.message;
+    }
+
+    private void ShowContactCard(ChatModel chatModel)
+    {
+        var info = chatModel.IsGroup
+            ? $"名称: {chatModel.DisplayName}\n类型: 全员群聊"
+            : $"昵称: {chatModel.NickName}\nUID: {chatModel.Uid}\nIP: {chatModel.IpAddress}:{chatModel.Port}";
+        var remark = EcInputBox.Show("联系人信息", $"{info}\n\n备注（留空则使用昵称）:", chatModel.RemarkName);
+        if (remark == null)
+        {
+            return;
+        }
+
+        chatModel.RemarkName = remark.Trim();
+        UserListVm.RefreshFilter();
+    }
+
+    private void UserAvatarClick(ChatModel chatModel)
+    {
+        if (chatModel.Uid == MyChatModel.Uid)
+        {
+            ImageClick();
+            return;
+        }
+
+        ShowContactCard(chatModel);
+    }
+
+    private void AddFiles(IEnumerable<string> filePaths)
+    {
+        foreach (var filePath in filePaths.Where(File.Exists))
+        {
+            var fileInfo = new FileInfo(filePath);
+            var isImage = ChatHelpers.IsImageFile(filePath);
+            PendingFiles.Add(new FileModel
+            {
+                FileName = fileInfo.Name,
+                ClientFilePath = fileInfo.FullName,
+                FileSize = MqttContent.FileSizeToString(fileInfo.Length),
+                IsImage = isImage,
+                ThumbnailBase64 = isImage ? ChatHelpers.CreateThumbnailBase64(fileInfo.FullName) : ""
+            });
+        }
+    }
+
+    private void PublishMessage(string topic, MsgModel msgModel)
+    {
+        _myClient.SendMsg(topic, msgModel);
+        if (!msgModel.isGroupMsg && !MyChatModel.Uid.Equals(_sendTopic))
+        {
+            AddOutgoingPrivateMessage(_sendTopic, msgModel);
+        }
+    }
+
+    private void AddOutgoingPrivateMessage(string conversationUid, MsgModel msgModel)
+    {
+        var messages = EnsureMessageList(conversationUid);
+        messages.Add(CreateChatMessage(msgModel));
+        var chat = UserListVm.FindByUid(conversationUid);
+        if (chat != null)
+        {
+            chat.MessageCount = 0;
+            chat.Message = GetMessagePreview(msgModel);
+        }
+
+        BindCurrentMessages();
+    }
+
+    private MsgModel CreateOutgoingMessage(string message, bool isGroupMsg)
+    {
+        return new MsgModel
+        {
+            userModel = MqttContent.ToUserModel(MyChatModel),
+            sendTime = DateTime.Now,
+            message = message,
+            isGroupMsg = isGroupMsg,
+            groupName = isGroupMsg ? ChatObj.GroupName : ""
+        };
+    }
+
+    private MsgModel CreateOutgoingFileMessage(FileModel file, bool isGroupMsg)
+    {
+        return new MsgModel
+        {
+            userModel = MqttContent.ToUserModel(MyChatModel),
+            sendTime = DateTime.Now,
+            isGroupMsg = isGroupMsg,
+            groupName = isGroupMsg ? ChatObj.GroupName : "",
+            isImageOrFile = true,
+            isImage = file.IsImage,
+            thumbnailBase64 = file.ThumbnailBase64,
+            fileName = file.FileName,
+            clientFilePath = file.ClientFilePath,
+            fileSize = file.FileSize
+        };
+    }
+
     #endregion
 
     #region Commands
@@ -300,7 +444,6 @@ public partial class MainViewModel : ObservableObject
     private void Minimize(Window window)
     {
         window.WindowState = WindowState.Minimized;
-        GC.Collect();
     }
 
     [RelayCommand]
@@ -310,7 +453,6 @@ public partial class MainViewModel : ObservableObject
         {
             window.WindowState = WindowState.Normal;
             IsMaximized = false;
-            GC.Collect();
         }
         else
         {
@@ -335,85 +477,44 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void Send()
     {
-        if(string.IsNullOrEmpty(ChatObj.Uid))
+        if (string.IsNullOrEmpty(ChatObj.Uid))
         {
             EcMsgBox.Show("先选择用户");
             return;
-        }    
+        }
+
         try
         {
-            if (!string.IsNullOrEmpty(FlowDocumentToString(SendMsg)) || _nowFileList.Count > 0)
-            {
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                {
-                    var isGroupMsg = ChatObj.IsGroup;
-                    var topic = isGroupMsg ? MqttContent.GROUP : MqttContent.MESSAGE + _sendTopic;
-                    if (_nowFileList.Count > 0)
-                    {
-                        for (int i = 0; i < _nowFileList.Count; i++)
-                        {
-                            var msgModel = new MsgModel
-                            {
-                                userModel = MqttContent.ToUserModel(MyChatModel),
-                                sendTime = DateTime.Now,
-                                message = FlowDocumentToString(SendMsg),
-                                isGroupMsg = isGroupMsg,
-                                groupName = ChatObj.GroupName,
-                                isImageOrFile = true,
-                                fileName = _nowFileList[i].fileName,
-                                clientFilePath = _nowFileList[i].clientFilePath,
-                                fileSize = _nowFileList[i].fileSize
-                            };
-                            // 发送文件时，先发送MQTT消息，等接收方确认再用Socket连接发送文件
-                            _myClient.SendMsg(topic, msgModel);
-                            if (!isGroupMsg && !MyChatModel.Uid.Equals(_sendTopic))
-                            {
-                                if (_chatMessageDic.ContainsKey(_sendTopic))
-                                {
-                                    _chatMessageDic[_sendTopic].Add(MqttContent.ToChatMessage(msgModel, MyChatModel.Uid));
-                                    UserListVm.Users.Where(x => x.Uid == _sendTopic).First().MessageCount = 0;
-                                    UserListVm.Users.Where(x => x.Uid == _sendTopic).First().Message = msgModel.message;
-                                    ChatMessages.Messages = new BindingList<ChatMessage>(_chatMessageDic[_sendTopic]);
-                                }
-                            }
-                        }
-                        _nowFileList.Clear();
-                    }
-                    else
-                    {
-                        var msgModel = new MsgModel
-                        {
-                            userModel =  MqttContent.ToUserModel(MyChatModel),
-                            sendTime = DateTime.Now,
-                            message = FlowDocumentToString(SendMsg),
-                            isGroupMsg = isGroupMsg,
-                            groupName = ChatObj.GroupName,
-                        };
-                        _myClient.SendMsg(topic, msgModel);
-                        if (!isGroupMsg && !MyChatModel.Uid.Equals(_sendTopic))
-                        {
-                            if (_chatMessageDic.ContainsKey(_sendTopic))
-                            {
-                                _chatMessageDic[_sendTopic].Add(MqttContent.ToChatMessage(msgModel, MyChatModel.Uid));
-                                UserListVm.Users.Where(x => x.Uid == _sendTopic).First().MessageCount = 0;
-                                UserListVm.Users.Where(x => x.Uid == _sendTopic).First().Message = msgModel.message;
-                                ChatMessages.Messages = new BindingList<ChatMessage>(_chatMessageDic[_sendTopic]);
-                            }
-                        }
-                    }
-                    
-                    SendMsg = new FlowDocument();
-                });
-            }
-            else
+            var messageText = FlowDocumentToString(SendMsg);
+            if (string.IsNullOrWhiteSpace(messageText) && PendingFiles.Count == 0)
             {
                 EcMsgBox.Show("发送内容或对象不可为空");
+                return;
             }
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var isGroupMsg = ChatObj.IsGroup;
+                var topic = isGroupMsg ? MqttContent.GROUP : MqttContent.MESSAGE + _sendTopic;
+
+                if (!string.IsNullOrWhiteSpace(messageText))
+                {
+                    PublishMessage(topic, CreateOutgoingMessage(messageText, isGroupMsg));
+                }
+
+                foreach (var file in PendingFiles.ToList())
+                {
+                    PublishMessage(topic, CreateOutgoingFileMessage(file, isGroupMsg));
+                }
+
+                PendingFiles.Clear();
+                SendMsg = new FlowDocument();
+            });
         }
         catch (Exception ex)
         {
             EcMsgBox.Show("发送失败");
-            System.Diagnostics.Debug.WriteLine(">>>>"+ex);
+            System.Diagnostics.Debug.WriteLine(">>>>" + ex);
         }
     }
 
@@ -429,23 +530,14 @@ public partial class MainViewModel : ObservableObject
         EcMsgBox.Show("这个功能还没做");
     }
 
-    private bool isTheme;
     [RelayCommand]
     private void ImageClick()
     {
         MyChatModel.Image = MqttContent.GetRandomImg();
-        isTheme = !isTheme;
-        if (isTheme)
-        {
-            _themeService.SetTheme(ApplicationTheme.Dark);
-        }
-        else
-        {
-            _themeService.SetTheme(ApplicationTheme.Light);
-        }
+        _isTheme = !_isTheme;
+        _themeService.SetTheme(_isTheme ? ApplicationTheme.Dark : ApplicationTheme.Light);
     }
 
-    private List<FileModel> _nowFileList = new List<FileModel>();
     [RelayCommand]
     private void FileBrowse()
     {
@@ -454,102 +546,102 @@ public partial class MainViewModel : ObservableObject
             EcMsgBox.Show("先选择用户");
             return;
         }
-        OpenFileDialog dialog = new OpenFileDialog();
-        dialog.Filter = "所有文件(*.*)|*.*";
-        dialog.Multiselect = true;
-        DialogResult result = dialog.ShowDialog();
 
-        if (result == DialogResult.OK)
+        var dialog = new OpenFileDialog
         {
-            string[] names = dialog.FileNames;
-            foreach (string name in names)
-            {
-                FileInfo myFI = new FileInfo(name);
-                _nowFileList.Add(new FileModel
-                {
-                    fileName = myFI.Name,
-                    clientFilePath = myFI.FullName,
-                    fileSize = MqttContent.FileSizeToString(myFI.Length),
-                });
-            }
-            //添加到界面显示出来 TODO 
+            Filter = "所有文件(*.*)|*.*",
+            Multiselect = true
+        };
+
+        if (dialog.ShowDialog() == DialogResult.OK)
+        {
+            AddFiles(dialog.FileNames);
         }
     }
+
+    [RelayCommand]
+    private void RemovePendingFile(FileModel file)
+    {
+        PendingFiles.Remove(file);
+    }
+
+    public void AddDroppedFiles(IEnumerable<string> filePaths)
+    {
+        if (string.IsNullOrEmpty(ChatObj.Uid))
+        {
+            EcMsgBox.Show("先选择用户");
+            return;
+        }
+
+        AddFiles(filePaths);
+    }
+
     #endregion
 
     #region Property
-    [ObservableProperty]
-    private bool _isMaximized;
 
-    [ObservableProperty]
-    private bool _isTopmost;
+    [ObservableProperty] private bool _isMaximized;
 
-    // 左侧用户
+    [ObservableProperty] private bool _isTopmost;
+
+    [ObservableProperty] private string _taskbarPreviewText = "EasyChat";
+
     public UserListVm UserListVm { get; } = new();
 
-    // 用户对应聊天框
     public MessageListVm ChatMessages { get; set; } = new();
 
-    /// <summary>
-    ///     发送信息
-    /// </summary>
-    [ObservableProperty] private FlowDocument _sendMsg = new FlowDocument();
+    public ObservableCollection<FileModel> PendingFiles { get; } = [];
 
     /// <summary>
-    ///     用户自己
+    /// 发送信息。
     /// </summary>
-    [ObservableProperty] private ChatModel _myChatModel = new ChatModel();
+    [ObservableProperty] private FlowDocument _sendMsg = new();
+
     /// <summary>
-    ///     当前聊天对象
+    /// 用户自己。
     /// </summary>
-    [ObservableProperty] private ChatModel _chatObj = new ChatModel();
+    [ObservableProperty] private ChatModel _myChatModel = new();
+
+    /// <summary>
+    /// 当前聊天对象。
+    /// </summary>
+    [ObservableProperty] private ChatModel _chatObj = new();
 
     #endregion
 
     #region 后门方法
+
     private void InitGroup()
     {
-        UserListVm.Users.Add(new ChatModel
-        {
-            Uid = "群聊",
-            NickName = "群聊",
-            GroupName = "群聊",
-            Image = MqttContent.GetRandomImg(),
-            IsGroup = true
-        });
-        _chatMessageDic.TryAdd("群聊", new List<ChatMessage>());
-    }
-
-    private void WindowIsClosing()
-    {
-        // 判断当前窗口是否被关闭或者最小化
-        // TODO 上述情况下可能会没有新消息提示
+        EnsureGroup("群聊");
     }
 
     private string FlowDocumentToString(FlowDocument document)
     {
-        string rtn = "";
-        foreach (Paragraph block in document.Blocks)
+        var builder = new StringBuilder();
+        foreach (var block in document.Blocks.OfType<Paragraph>())
         {
             foreach (var item in block.Inlines)
             {
-                if (item is Run r)
+                if (item is Run run)
                 {
-                    rtn += r.Text;
+                    builder.Append(run.Text);
                 }
                 else if (item is LineBreak)
                 {
-                    rtn += Environment.NewLine;
+                    builder.AppendLine();
                 }
-                else if (item is InlineUIContainer ui)
+                else if (item is InlineUIContainer { Child: ContentControl { Content: not null } content })
                 {
-                    ContentControl image = (ContentControl)ui.Child;
-                    rtn += image.Content.ToString();
+                    builder.Append(content.Content);
                 }
             }
-            rtn += Environment.NewLine;
+
+            builder.AppendLine();
         }
-        return rtn.TrimEnd();
+
+        return builder.ToString().TrimEnd();
     }
+
     #endregion
 }

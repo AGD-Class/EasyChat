@@ -11,10 +11,15 @@
                  mc:Ignorable="d"
                  Height="600"
                  Width="800"
+                 MinHeight="500"
+                 MinWidth="680"
                  WindowStartupLocation="CenterScreen">
     <Window.DataContext>
         <vm:MainViewModel />
     </Window.DataContext>
+    <ui:FluentWindow.TaskbarItemInfo>
+        <TaskbarItemInfo Description="{Binding TaskbarPreviewText}" />
+    </ui:FluentWindow.TaskbarItemInfo>
     <Window.Resources>
         <SolidColorBrush x:Key="Control.BoderBrush" Color="#CBCBCB"/>
         <Style x:Key="SearchTestBox" TargetType="{x:Type TextBox}">
@@ -55,7 +60,7 @@
                                         </TextBlock>
                                     </Grid>
                                 </Border>
-                                <ui:Button Grid.Column="1"  Command="{Binding NothingCommand}"  >
+                                <ui:Button Grid.Column="1"  Command="{Binding UserListVm.ClearSearchCommand}"  >
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                             <Setter Property="Content" Value="{ui:SymbolIcon Symbol=Search12}" />
@@ -141,7 +146,8 @@
             </Grid.RowDefinitions>
             <!--  搜索框 -->
             <Grid Grid.Row="0" >
-                <TextBox Style="{DynamicResource SearchTestBox}"/>
+                <TextBox Style="{DynamicResource SearchTestBox}"
+                         Text="{Binding UserListVm.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
             </Grid>
             <subView:UserListUc Grid.Row="1" DataContext="{Binding UserListVm}" />
         </Grid>
@@ -156,9 +162,9 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="35" />
                 <RowDefinition Height="50" />
-                <RowDefinition Height="2.5*" />
+                <RowDefinition Height="*" MinHeight="160" />
                 <RowDefinition Height="2" />
-                <RowDefinition Height="*" MinHeight="50" MaxHeight="200" />
+                <RowDefinition Height="170" MinHeight="150" />
             </Grid.RowDefinitions>
 
             <!--#region// 顶部图标功能 //-->
@@ -232,9 +238,13 @@
             </Grid>
             <!--#endregion-->
 
-            <ui:Card Grid.Row="1">
-                <TextBlock Text="{Binding ChatObj.NickName, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
-            </ui:Card>
+            <Grid Grid.Row="1" Background="Transparent">
+                <TextBlock Text="{Binding ChatObj.DisplayName, UpdateSourceTrigger=PropertyChanged, Mode=OneWay}"
+                           Margin="16,0"
+                           VerticalAlignment="Center"
+                           FontSize="16"
+                           FontWeight="SemiBold" />
+            </Grid>
 
             <!-- Chat messages list -->
             <subView:MessageUc Grid.Row="2" DataContext="{Binding ChatMessages}" />
@@ -242,31 +252,104 @@
             <GridSplitter Grid.Row="3" Height="2" VerticalAlignment="Stretch" />
             
             <!-- send message -->
-            <Grid Grid.Row="4">
-                <StackPanel>
-                    <StackPanel Height="30"  Orientation="Horizontal">
+            <Grid Grid.Row="4" MinHeight="150">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="30" />
+                        <RowDefinition Height="Auto" MaxHeight="52" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="34" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Height="30"  Orientation="Horizontal">
                         <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Emoji16}" Width="38" Height="30"/>
                         <ui:Button Command="{Binding FileBrowseCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Document16}" Width="38" Height="30"/>
                         <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=ScreenCut20}" Width="38" Height="30"/>
                         <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=MoviesAndTv16}" Width="38" Height="30"/>
                         <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Camera16}" Width="38" Height="30"/>
                     </StackPanel>
-                    <ScrollViewer MinHeight="80" Focusable="False">
+                    <ScrollViewer Grid.Row="1"
+                                  MaxHeight="52"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding PendingFiles}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#33000000"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Margin="6,2"
+                                            Padding="6"
+                                            Width="180">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="48"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="28"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Image Width="42"
+                                                   Height="42"
+                                                   Stretch="UniformToFill"
+                                                   Source="{Binding ThumbnailImage}"
+                                                   Visibility="{Binding IsImage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                            <Border Width="42"
+                                                    Height="42"
+                                                    CornerRadius="4"
+                                                    Background="#11000000"
+                                                    Visibility="{Binding IsImage, Converter={StaticResource BooleanToVisibilityReverseConverter}}">
+                                                <TextBlock Text="FILE"
+                                                           FontSize="10"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding FileName}"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding FileSize}"
+                                                           FontSize="11"
+                                                           Foreground="Gray"/>
+                                            </StackPanel>
+                                            <ui:Button Grid.Column="2"
+                                                       Width="24"
+                                                       Height="24"
+                                                       Padding="0"
+                                                       Background="Transparent"
+                                                       BorderBrush="Transparent"
+                                                       Content="{ui:SymbolIcon Symbol=Dismiss12}"
+                                                       Command="{Binding DataContext.RemovePendingFileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                       CommandParameter="{Binding}"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <ScrollViewer Grid.Row="2" Focusable="False">
                         <RichTextBox AllowDrop="True" extensions:RichTextBoxExtensions.Document="{Binding SendMsg,Mode=TwoWay}" 
                                      Background="Transparent" BorderBrush="Transparent" BorderThickness="0" 
-                                     AcceptsReturn="True">
+                                     AcceptsReturn="True"
+                                     PreviewKeyDown="RichTextBox_PreviewKeyDown"
+                                     PreviewDragOver="RichTextBox_PreviewDragOver"
+                                     Drop="RichTextBox_Drop">
                             <RichTextBox.InputBindings>
                                 <KeyBinding Key="Enter" Command="{Binding SendCommand}"/>
                             </RichTextBox.InputBindings>
                         </RichTextBox>
                     </ScrollViewer>
-                    <StackPanel Height="30" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <StackPanel Grid.Row="3" Height="30" Orientation="Horizontal" HorizontalAlignment="Right">
                         <ui:Button  FontSize="20" HorizontalAlignment="Center"  VerticalAlignment="Center"
                             Icon="{ui:SymbolIcon Symbol=Send16}"
                             Command="{Binding SendCommand}"
                             Content="发送" />
                     </StackPanel>
-                </StackPanel>
+                </Grid>
             </Grid>
         </Grid>
         <!--#endregion-->

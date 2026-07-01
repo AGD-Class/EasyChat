@@ -5,7 +5,6 @@ namespace EasyChat.Service
 {
     public class SocketClient
     {
-        private static SocketClient? _client;
         private string _serverIP;
         private int _serverPort;
 
@@ -18,11 +17,7 @@ namespace EasyChat.Service
 
         public static SocketClient GetInctance(string serverIP, int serverPort)
         {
-            if (_client == null)
-            {
-                _client = new SocketClient(serverIP, serverPort);
-            }
-            return _client;
+            return new SocketClient(serverIP, serverPort);
         }
 
         // 发送文件
