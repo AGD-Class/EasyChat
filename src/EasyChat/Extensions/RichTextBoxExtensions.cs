@@ -19,7 +19,7 @@ namespace EasyChat.Extensions
             FlowDocument document = (FlowDocument)e.NewValue;
             if (document.Parent is RichTextBox parent)
             {
-                //这里很重要，WPF的控件元素有且仅有一个父对象（如果不这样设置，会报错：Document已属于另一RichTextBox）
+                //WPF的控件元素有且仅有一个父对象（如果不这样设置，会报错：Document已属于另一RichTextBox）
                 parent.Document = new FlowDocument();
             }
             document.LineHeight = 1;

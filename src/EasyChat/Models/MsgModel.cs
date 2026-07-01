@@ -1,12 +1,12 @@
 namespace EasyChat.Models;
 
 /// <summary>
-/// 消息封装体对象
+/// Mqtt消息封装体对象
 /// </summary>
 public class MsgModel
 {
     /// <summary>
-    /// userModel
+    /// 发送者userModel
     /// </summary>
     public UserModel userModel { get; set; } = new UserModel();
 
@@ -71,6 +71,16 @@ public class MsgModel
     /// 服务端是否确认接收
     /// </summary>
     public bool isServerReceived { get; set; } = false;
+
+    /// <summary>
+    /// 服务端IP地址
+    /// </summary>
+    public string serverIp { get; set; } = "";
+
+    /// <summary>
+    /// 服务端端口
+    /// </summary>
+    public int serverPort { get; set; }
 
     /// <summary>
     /// 大文件分片传输：片总数
