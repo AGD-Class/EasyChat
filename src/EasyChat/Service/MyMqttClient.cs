@@ -21,11 +21,13 @@ public class MyMqttClient : SingletonBase<MyMqttClient>
     public event Action<MsgModel>? ReceiveMsgEvent;
     public event Action<MsgModel>? OnlinePersonEvent;
     public event Action<MsgModel>? FileSendEvent;
+    public event Action<MsgModel>? ScreenShareEvent;
 
     private MyMqttClient()
     {
         _topicSet.Add(MqttContent.ONLINE);
         _topicSet.Add(MqttContent.FILE);
+        _topicSet.Add(MqttContent.SCREEN);
         _topicSet.Add(MqttContent.MESSAGE + MyClientUid);
     }
 
@@ -197,6 +199,10 @@ public class MyMqttClient : SingletonBase<MyMqttClient>
             {
                 // 私发消息
                 ReceiveMsgEvent?.Invoke(msgModel);
+            }
+            else if (args.ApplicationMessage.Topic.Equals(MqttContent.SCREEN))
+            {
+                ScreenShareEvent?.Invoke(msgModel);
             }
             else if (args.ApplicationMessage.Topic.Equals(MqttContent.FILE))
             {

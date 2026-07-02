@@ -12,6 +12,7 @@ using EasyChat.Handle;
 using EasyChat.Models;
 using EasyChat.Service;
 using EasyChat.Utilities;
+using EasyChat.Views;
 using EasyChat.ViewModels.SubVms;
 using Wpf.Ui;
 using Wpf.Ui.Appearance;
@@ -30,6 +31,10 @@ public partial class MainViewModel : ObservableObject
     private readonly Dictionary<string, BindingList<ChatMessage>> _chatMessageDic = new();
     private readonly SocketServer _socketServer;
     private string _sendTopic = string.Empty;
+    private ScreenShareServer? _screenShareServer;
+    private ScreenShareView? _screenShareView;
+    private string _screenShareSessionId = string.Empty;
+    private string _screenShareTargetUid = string.Empty;
     private int _allNewMessageCount;
     private bool _isTheme;
 
@@ -54,6 +59,7 @@ public partial class MainViewModel : ObservableObject
         _myClient.OnlinePersonEvent += ClientChangeOnlinePerson;
         _myClient.ReceiveMsgEvent += ClientChangeReceiveMsg;
         _myClient.FileSendEvent += ClientChangeReceiveFile;
+        _myClient.ScreenShareEvent += ClientChangeScreenShare;
 
         UserListVm.OnSelected += UserSelect;
         UserListVm.RightClicked += ShowContactCard;
@@ -119,6 +125,34 @@ public partial class MainViewModel : ObservableObject
         {
             DealSendImageOrFile(newMsg);
         }
+    }
+
+    private void ClientChangeScreenShare(MsgModel msgModel)
+    {
+        if (!msgModel.isScreenShare
+            || msgModel.userModel.uid == MyChatModel.Uid
+            || (!string.IsNullOrWhiteSpace(msgModel.screenShareTargetUid)
+                && msgModel.screenShareTargetUid != MyChatModel.Uid))
+        {
+            return;
+        }
+
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            switch (msgModel.screenShareAction)
+            {
+                case MqttContent.SCREEN_SHARE_REQUEST:
+                    HandleScreenShareRequest(msgModel);
+                    break;
+                case MqttContent.SCREEN_SHARE_ACCEPT:
+                case MqttContent.SCREEN_SHARE_REJECT:
+                    HandleScreenShareResponse(msgModel);
+                    break;
+                case MqttContent.SCREEN_SHARE_STOP:
+                    HandleScreenShareStop(msgModel);
+                    break;
+            }
+        });
     }
 
     private void UserSelect(ChatModel chatModel)
@@ -252,6 +286,162 @@ public partial class MainViewModel : ObservableObject
 
         var socketClient = SocketClient.GetInctance(newMsg.userModel.ipAddress, newMsg.userModel.port);
         _ = socketClient.SendFileAsync(filePath);
+    }
+
+    private void HandleScreenShareRequest(MsgModel msgModel)
+    {
+        var hostIp = string.IsNullOrWhiteSpace(msgModel.screenShareHostIp)
+            ? msgModel.userModel.ipAddress
+            : msgModel.screenShareHostIp;
+        if (string.IsNullOrWhiteSpace(hostIp) || msgModel.screenSharePort <= 0)
+        {
+            EcMsgBox.Show("屏幕共享连接信息无效");
+            return;
+        }
+
+        var senderName = GetScreenShareSenderName(msgModel);
+        var result = MessageBox.Show(
+            $"{senderName} 请求共享屏幕，是否查看？",
+            "屏幕共享",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            SendScreenShareSignal(
+                MqttContent.SCREEN_SHARE_REJECT,
+                msgModel.userModel.uid,
+                msgModel.screenShareSessionId);
+            return;
+        }
+
+        OpenScreenShareView(senderName, msgModel.screenShareSessionId, hostIp, msgModel.screenSharePort);
+        SendScreenShareSignal(
+            MqttContent.SCREEN_SHARE_ACCEPT,
+            msgModel.userModel.uid,
+            msgModel.screenShareSessionId);
+    }
+
+    private void HandleScreenShareResponse(MsgModel msgModel)
+    {
+        if (msgModel.screenShareSessionId != _screenShareSessionId)
+        {
+            return;
+        }
+
+        var senderName = GetScreenShareSenderName(msgModel);
+        if (msgModel.screenShareAction == MqttContent.SCREEN_SHARE_ACCEPT)
+        {
+            EcMsgBox.Show($"{senderName} 已开始观看你的屏幕");
+        }
+        else
+        {
+            StopLocalScreenShare(false);
+            EcMsgBox.Show($"{senderName} 拒绝了屏幕共享");
+        }
+    }
+
+    private void HandleScreenShareStop(MsgModel msgModel)
+    {
+        if (_screenShareView == null
+            || (!string.IsNullOrWhiteSpace(msgModel.screenShareSessionId)
+                && _screenShareView.SessionId != msgModel.screenShareSessionId))
+        {
+            return;
+        }
+
+        _screenShareView.Close();
+        _screenShareView = null;
+        EcMsgBox.Show($"{GetScreenShareSenderName(msgModel)} 已停止屏幕共享");
+    }
+
+    private void StartLocalScreenShare()
+    {
+        try
+        {
+            _screenShareServer = new ScreenShareServer(MqttContent.SCREEN_SHARE_PORT);
+            _screenShareServer.Start();
+            _screenShareTargetUid = ChatObj.Uid;
+            _screenShareSessionId = Guid.NewGuid().ToString("N");
+            IsScreenSharing = true;
+
+            SendScreenShareSignal(
+                MqttContent.SCREEN_SHARE_REQUEST,
+                _screenShareTargetUid,
+                _screenShareSessionId,
+                MyChatModel.IpAddress,
+                _screenShareServer.Port);
+            EcMsgBox.Show("已发送屏幕共享邀请");
+        }
+        catch (Exception ex)
+        {
+            StopLocalScreenShare(false);
+            EcMsgBox.Show($"屏幕共享启动失败：{ex.Message}");
+        }
+    }
+
+    private void StopLocalScreenShare(bool notifyTarget)
+    {
+        var targetUid = _screenShareTargetUid;
+        var sessionId = _screenShareSessionId;
+
+        _screenShareServer?.Dispose();
+        _screenShareServer = null;
+        _screenShareTargetUid = string.Empty;
+        _screenShareSessionId = string.Empty;
+        IsScreenSharing = false;
+
+        if (notifyTarget && !string.IsNullOrWhiteSpace(targetUid))
+        {
+            SendScreenShareSignal(MqttContent.SCREEN_SHARE_STOP, targetUid, sessionId);
+        }
+    }
+
+    private void OpenScreenShareView(string senderName, string sessionId, string hostIp, int port)
+    {
+        _screenShareView?.Close();
+
+        var view = new ScreenShareView(senderName, sessionId, new ScreenShareClient(hostIp, port));
+        var owner = Application.Current.Windows
+            .OfType<Window>()
+            .FirstOrDefault(window => window.IsActive);
+        if (owner != null && owner != view)
+        {
+            view.Owner = owner;
+        }
+
+        view.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_screenShareView, view))
+            {
+                _screenShareView = null;
+            }
+        };
+
+        _screenShareView = view;
+        view.Show();
+    }
+
+    private void SendScreenShareSignal(string action, string targetUid, string sessionId, string hostIp = "", int port = 0)
+    {
+        _myClient.SendMsg(MqttContent.SCREEN, new MsgModel
+        {
+            userModel = MqttContent.ToUserModel(MyChatModel),
+            sendTime = DateTime.Now,
+            isScreenShare = true,
+            screenShareAction = action,
+            screenShareTargetUid = targetUid,
+            screenShareSessionId = sessionId,
+            screenShareHostIp = hostIp,
+            screenSharePort = port
+        });
+    }
+
+    private string GetScreenShareSenderName(MsgModel msgModel)
+    {
+        return UserListVm.FindByUid(msgModel.userModel.uid)?.DisplayName
+               ?? msgModel.userModel.nickName
+               ?? msgModel.userModel.uid;
     }
 
     private BindingList<ChatMessage> EnsureMessageList(string uid)
@@ -525,6 +715,43 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ScreenShare()
+    {
+        if (_screenShareServer != null)
+        {
+            StopLocalScreenShare(true);
+            EcMsgBox.Show("已停止屏幕共享");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(ChatObj.Uid))
+        {
+            EcMsgBox.Show("先选择用户");
+            return;
+        }
+
+        if (ChatObj.IsGroup)
+        {
+            EcMsgBox.Show("第一版屏幕共享仅支持私聊");
+            return;
+        }
+
+        if (ChatObj.Uid == MyChatModel.Uid)
+        {
+            EcMsgBox.Show("不能向自己共享屏幕");
+            return;
+        }
+
+        if (!ChatObj.IsOnline)
+        {
+            EcMsgBox.Show("对方不在线");
+            return;
+        }
+
+        StartLocalScreenShare();
+    }
+
+    [RelayCommand]
     private void Nothing()
     {
         EcMsgBox.Show("这个功能还没做");
@@ -584,7 +811,16 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty] private bool _isTopmost;
 
+    [ObservableProperty] private bool _isScreenSharing;
+
     [ObservableProperty] private string _taskbarPreviewText = "EasyChat";
+
+    public string ScreenShareButtonToolTip => IsScreenSharing ? "停止屏幕共享" : "共享屏幕";
+
+    partial void OnIsScreenSharingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ScreenShareButtonToolTip));
+    }
 
     public UserListVm UserListVm { get; } = new();
 

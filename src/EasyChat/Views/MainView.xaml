@@ -265,7 +265,7 @@
                         <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Emoji16}" Width="38" Height="30"/>
                         <ui:Button Command="{Binding FileBrowseCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Document16}" Width="38" Height="30"/>
                         <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=ScreenCut20}" Width="38" Height="30"/>
-                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=MoviesAndTv16}" Width="38" Height="30"/>
+                        <ui:Button Command="{Binding ScreenShareCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=MoviesAndTv16}" Width="38" Height="30" ToolTip="{Binding ScreenShareButtonToolTip}"/>
                         <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Camera16}" Width="38" Height="30"/>
                     </StackPanel>
                     <ScrollViewer Grid.Row="1"

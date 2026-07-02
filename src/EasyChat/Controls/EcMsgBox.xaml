@@ -1,7 +1,7 @@
 ﻿<Window x:Class="EasyChat.Controls.EcMsgBox"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Message" Height="120" Width="200" WindowStartupLocation="CenterScreen"
+        Title="Message" Height="150" Width="260" WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
     <Grid>
@@ -9,8 +9,13 @@
             <StackPanel>
                 <TextBlock x:Name="MessageTextBlock" TextWrapping="Wrap" FontSize="16" Foreground="Pink"
                            TextAlignment="Center" />
-                <Button Content="好(*╹▽╹*)~" Width="95" Height="30" HorizontalAlignment="Center" Margin="10,10,0,0"
-                        Background="Pink" Foreground="White" Click="OkButton_Click" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,14,0,0">
+                    <Button x:Name="OkButton" Content="好(*╹▽╹*)~" Width="88" Height="30"
+                            Background="Pink" Foreground="White" Click="OkButton_Click" />
+                    <Button x:Name="CancelButton" Content="取消" Width="88" Height="30" Margin="8,0,0,0"
+                            Background="White" Foreground="Pink" BorderBrush="Pink" Click="CancelButton_Click"
+                            Visibility="Collapsed" />
+                </StackPanel>
             </StackPanel>
         </Border>
     </Grid>

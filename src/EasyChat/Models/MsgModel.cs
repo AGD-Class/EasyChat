@@ -90,4 +90,34 @@ public class MsgModel
     /// 大文件分片传输：当前片
     /// </summary>
     public int thisChunk { get; set; }
+
+    /// <summary>
+    /// Screen sharing control message.
+    /// </summary>
+    public bool isScreenShare { get; set; }
+
+    /// <summary>
+    /// Screen sharing action: request, accept, reject, stop.
+    /// </summary>
+    public string screenShareAction { get; set; } = "";
+
+    /// <summary>
+    /// Target user uid for the screen sharing signal.
+    /// </summary>
+    public string screenShareTargetUid { get; set; } = "";
+
+    /// <summary>
+    /// Correlates request/accept/stop messages for one sharing session.
+    /// </summary>
+    public string screenShareSessionId { get; set; } = "";
+
+    /// <summary>
+    /// LAN IP address of the user sharing the screen.
+    /// </summary>
+    public string screenShareHostIp { get; set; } = "";
+
+    /// <summary>
+    /// TCP port for the screen frame stream.
+    /// </summary>
+    public int screenSharePort { get; set; }
 }

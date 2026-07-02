@@ -18,14 +18,21 @@ public static class MqttContent
     public const string MESSAGE = "message/";
     // 文件
     public const string FILE = "file/";
+    // 屏幕共享控制信令
+    public const string SCREEN = "screen/";
 
     // 2.其他
     public const int SERVER_PORT = 1883;
     public const int SOCKET_PORT = 9100;
+    public const int SCREEN_SHARE_PORT = 9200;
     public const string SERVER_USER = "Doctor";
     public const string SERVER_PW = "Amiya1223";
     public const string OFFLINE_STRING = "(已离线)";
     public const string FILE_STRING = "[文件]";
+    public const string SCREEN_SHARE_REQUEST = "request";
+    public const string SCREEN_SHARE_ACCEPT = "accept";
+    public const string SCREEN_SHARE_REJECT = "reject";
+    public const string SCREEN_SHARE_STOP = "stop";
 
     public static string IPADDRESS = string.Empty;
     public static string PASSWORD = string.Empty;
