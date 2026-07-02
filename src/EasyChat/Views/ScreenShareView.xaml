@@ -7,11 +7,18 @@
         MinHeight="360"
         MinWidth="480"
         WindowStartupLocation="CenterScreen"
-        Background="#111111">
+        Background="#111111"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        PreviewKeyUp="Window_PreviewKeyUp">
     <Grid Background="#111111">
         <Image x:Name="ScreenImage"
                Stretch="Uniform"
-               SnapsToDevicePixels="True" />
+               SnapsToDevicePixels="True"
+               Focusable="True"
+               MouseDown="ScreenImage_MouseDown"
+               MouseMove="ScreenImage_MouseMove"
+               MouseUp="ScreenImage_MouseUp"
+               MouseWheel="ScreenImage_MouseWheel" />
 
         <Border x:Name="StatusBorder"
                 HorizontalAlignment="Left"
@@ -26,11 +33,18 @@
                        FontSize="14" />
         </Border>
 
-        <Button Content="关闭"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Margin="16"
-                Padding="14,6"
-                Click="CloseButton_Click" />
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="16">
+            <Button x:Name="ControlButton"
+                    Content="请求控制"
+                    Padding="14,6"
+                    Margin="0,0,8,0"
+                    Click="ControlButton_Click" />
+            <Button Content="关闭"
+                    Padding="14,6"
+                    Click="CloseButton_Click" />
+        </StackPanel>
     </Grid>
 </Window>

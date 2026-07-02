@@ -120,4 +120,44 @@ public class MsgModel
     /// TCP port for the screen frame stream.
     /// </summary>
     public int screenSharePort { get; set; }
+
+    /// <summary>
+    /// Maximum shared frame width.
+    /// </summary>
+    public int screenShareWidth { get; set; }
+
+    /// <summary>
+    /// Maximum shared frame height.
+    /// </summary>
+    public int screenShareHeight { get; set; }
+
+    /// <summary>
+    /// Remote control input event type.
+    /// </summary>
+    public string screenControlEvent { get; set; } = "";
+
+    /// <summary>
+    /// Normalized cursor X position in the shared screen.
+    /// </summary>
+    public double screenControlX { get; set; }
+
+    /// <summary>
+    /// Normalized cursor Y position in the shared screen.
+    /// </summary>
+    public double screenControlY { get; set; }
+
+    /// <summary>
+    /// Mouse button: 0 left, 1 right, 2 middle.
+    /// </summary>
+    public int screenControlMouseButton { get; set; }
+
+    /// <summary>
+    /// Windows virtual key code for remote keyboard events.
+    /// </summary>
+    public int screenControlKey { get; set; }
+
+    /// <summary>
+    /// Mouse wheel delta.
+    /// </summary>
+    public int screenControlDelta { get; set; }
 }

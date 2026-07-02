@@ -33,6 +33,17 @@ public static class MqttContent
     public const string SCREEN_SHARE_ACCEPT = "accept";
     public const string SCREEN_SHARE_REJECT = "reject";
     public const string SCREEN_SHARE_STOP = "stop";
+    public const string SCREEN_CONTROL_REQUEST = "control_request";
+    public const string SCREEN_CONTROL_ACCEPT = "control_accept";
+    public const string SCREEN_CONTROL_REJECT = "control_reject";
+    public const string SCREEN_CONTROL_RELEASE = "control_release";
+    public const string SCREEN_CONTROL_INPUT = "control_input";
+    public const string SCREEN_CONTROL_MOUSE_MOVE = "mouse_move";
+    public const string SCREEN_CONTROL_MOUSE_DOWN = "mouse_down";
+    public const string SCREEN_CONTROL_MOUSE_UP = "mouse_up";
+    public const string SCREEN_CONTROL_MOUSE_WHEEL = "mouse_wheel";
+    public const string SCREEN_CONTROL_KEY_DOWN = "key_down";
+    public const string SCREEN_CONTROL_KEY_UP = "key_up";
 
     public static string IPADDRESS = string.Empty;
     public static string PASSWORD = string.Empty;

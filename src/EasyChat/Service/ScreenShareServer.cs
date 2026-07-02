@@ -11,21 +11,23 @@ namespace EasyChat.Service;
 public sealed class ScreenShareServer : IDisposable
 {
     private const int FrameIntervalMs = 100;
-    private const int MaxFrameWidth = 1280;
-    private const int MaxFrameHeight = 720;
     private const int SM_XVIRTUALSCREEN = 76;
     private const int SM_YVIRTUALSCREEN = 77;
     private const int SM_CXVIRTUALSCREEN = 78;
     private const int SM_CYVIRTUALSCREEN = 79;
 
+    private readonly int _maxFrameWidth;
+    private readonly int _maxFrameHeight;
     private readonly List<TcpClient> _clients = [];
     private readonly object _clientsLock = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly TcpListener _listener;
     private bool _isStarted;
 
-    public ScreenShareServer(int preferredPort)
+    public ScreenShareServer(int preferredPort, int maxFrameWidth, int maxFrameHeight)
     {
+        _maxFrameWidth = Math.Max(320, maxFrameWidth);
+        _maxFrameHeight = Math.Max(180, maxFrameHeight);
         (_listener, Port) = CreateStartedListener(preferredPort);
     }
 
@@ -128,7 +130,7 @@ public sealed class ScreenShareServer : IDisposable
         }
     }
 
-    private static byte[] CaptureFrame()
+    private byte[] CaptureFrame()
     {
         var bounds = GetVirtualScreenBounds();
         using var source = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format24bppRgb);
@@ -143,9 +145,9 @@ public sealed class ScreenShareServer : IDisposable
         return memoryStream.ToArray();
     }
 
-    private static Bitmap ScaleFrame(Bitmap source)
+    private Bitmap ScaleFrame(Bitmap source)
     {
-        var ratio = Math.Min(MaxFrameWidth / (double)source.Width, MaxFrameHeight / (double)source.Height);
+        var ratio = Math.Min(_maxFrameWidth / (double)source.Width, _maxFrameHeight / (double)source.Height);
         ratio = Math.Min(1, ratio);
         var width = Math.Max(1, (int)(source.Width * ratio));
         var height = Math.Max(1, (int)(source.Height * ratio));
