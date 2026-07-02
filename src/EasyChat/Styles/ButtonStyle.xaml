@@ -30,13 +30,65 @@
         </Setter>
     </Style>
 
+    <Style x:Key="CuteSendButtonStyle" TargetType="Button">
+        <Setter Property="MinWidth" Value="92" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Padding" Value="14,0" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Background" Value="#FFFF82A3" />
+        <Setter Property="BorderBrush" Value="#FFFF82A3" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd"
+                            CornerRadius="8"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter VerticalAlignment="Center"
+                                          HorizontalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="#FFFF6F96" />
+                            <Setter TargetName="bd" Property="BorderBrush" Value="#FFFF6F96" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="#FFF45F88" />
+                            <Setter TargetName="bd" Property="BorderBrush" Value="#FFF45F88" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.55" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="ToolTip">
         <Setter Property="Width" Value="Auto" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate>
-                    <Border CornerRadius="2" BorderBrush="#525457" BorderThickness="1" Background="LightBlue" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0 0 2 2">
-                        <TextBlock  Text="{TemplateBinding ContentControl.Content}" Foreground="#fafbfd" FontFamily="Microsoft YaHei" FontSize="12" LineHeight="auto" Margin="6" TextWrapping="Wrap" MaxWidth="250"/>
+                    <Border CornerRadius="8"
+                            BorderBrush="#FFFFBFD2"
+                            BorderThickness="1"
+                            Background="#FFFFF4F8"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Margin="0,0,2,2"
+                            Padding="8,5">
+                        <TextBlock Text="{TemplateBinding ContentControl.Content}"
+                                   Foreground="#FF7A5063"
+                                   FontFamily="Microsoft YaHei UI"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   MaxWidth="260"/>
                     </Border>
                 </ControlTemplate>
             </Setter.Value>

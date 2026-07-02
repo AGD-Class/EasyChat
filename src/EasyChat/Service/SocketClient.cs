@@ -5,6 +5,8 @@ namespace EasyChat.Service
 {
     public class SocketClient
     {
+        public const int ChunkSize = 81920;
+
         private string _serverIP;
         private int _serverPort;
 
@@ -21,16 +23,17 @@ namespace EasyChat.Service
         }
 
         // 发送文件
-        public async Task SendFileAsync(string filePath)
+        public async Task<bool> SendFileAsync(string filePath, IProgress<double>? progress = null)
         {
             //if (!File.Exists(filePath))
             //{
             //    //System.Diagnostics.Debug.WriteLine("文件不存在");
-            //    return;
+            //    return false;
             //}
             TcpClient client = new TcpClient(AddressFamily.InterNetwork);
             try
             {
+                progress?.Report(0);
                 client.Connect(_serverIP, _serverPort);
                 using NetworkStream networkStream = client.GetStream();
                 FileInfo fileInfo = new FileInfo(filePath);
@@ -56,24 +59,42 @@ namespace EasyChat.Service
                 // 发送文件内容
                 using (FileStream fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
                 {
-                    byte[] buffer = new byte[4096];
+                    byte[] buffer = new byte[ChunkSize];
                     int bytesRead;
+                    long sentChunks = 0;
+                    var totalChunks = GetTotalChunks(fileSize);
 
                     while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
                     {
                         await networkStream.WriteAsync(buffer, 0, bytesRead);
+                        sentChunks++;
+                        progress?.Report(GetProgress(sentChunks, totalChunks));
                     }
                 }
+
+                progress?.Report(100);
+                return true;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"文件发送失败：{ex.Message}");
+                return false;
             }
             finally
             {
                 client.Close();
                 client.Dispose();
             }
+        }
+
+        public static long GetTotalChunks(long fileSize)
+        {
+            return Math.Max(1L, (long)Math.Ceiling(fileSize / (double)ChunkSize));
+        }
+
+        private static double GetProgress(long finishedChunks, long totalChunks)
+        {
+            return Math.Clamp(finishedChunks * 100d / Math.Max(1, totalChunks), 0, 100);
         }
     }
 }

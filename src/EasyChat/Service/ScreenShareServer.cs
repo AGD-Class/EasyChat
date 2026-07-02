@@ -16,8 +16,8 @@ public sealed class ScreenShareServer : IDisposable
     private const int SM_CXVIRTUALSCREEN = 78;
     private const int SM_CYVIRTUALSCREEN = 79;
 
-    private readonly int _maxFrameWidth;
-    private readonly int _maxFrameHeight;
+    private int _maxFrameWidth;
+    private int _maxFrameHeight;
     private readonly List<TcpClient> _clients = [];
     private readonly object _clientsLock = new();
     private readonly CancellationTokenSource _cts = new();
@@ -32,6 +32,12 @@ public sealed class ScreenShareServer : IDisposable
     }
 
     public int Port { get; }
+
+    public void SetResolution(int maxFrameWidth, int maxFrameHeight)
+    {
+        _maxFrameWidth = Math.Max(320, maxFrameWidth);
+        _maxFrameHeight = Math.Max(180, maxFrameHeight);
+    }
 
     public void Start()
     {

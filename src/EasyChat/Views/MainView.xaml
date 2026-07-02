@@ -11,8 +11,8 @@
                  mc:Ignorable="d"
                  Height="600"
                  Width="800"
-                 MinHeight="500"
-                 MinWidth="680"
+                 MinHeight="560"
+                 MinWidth="760"
                  WindowStartupLocation="CenterScreen">
     <Window.DataContext>
         <vm:MainViewModel />
@@ -22,6 +22,42 @@
     </ui:FluentWindow.TaskbarItemInfo>
     <Window.Resources>
         <SolidColorBrush x:Key="Control.BoderBrush" Color="#CBCBCB"/>
+        <Style x:Key="ChatEditorRichTextBoxStyle" TargetType="{x:Type RichTextBox}">
+            <Setter Property="Background" Value="#FFFFFBFD"/>
+            <Setter Property="BorderBrush" Value="#FFFFC8DA"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#FF343434"/>
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="SelectionBrush" Value="#FFFFC8DA"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type RichTextBox}">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FFFFAFC7"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FFFF82A3"/>
+                                <Setter TargetName="border" Property="Background" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="SearchTestBox" TargetType="{x:Type TextBox}">
             <Setter Property="Background" Value="#FFF2F3F4"/>
             <Setter Property="Width" Value="200"/>
@@ -60,7 +96,9 @@
                                         </TextBlock>
                                     </Grid>
                                 </Border>
-                                <ui:Button Grid.Column="1"  Command="{Binding UserListVm.ClearSearchCommand}"  >
+                                <ui:Button Grid.Column="1"
+                                           Command="{Binding UserListVm.ClearSearchCommand}"
+                                           ToolTip="清空搜索，联系人都回来啦">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                             <Setter Property="Content" Value="{ui:SymbolIcon Symbol=Search12}" />
@@ -164,7 +202,7 @@
                 <RowDefinition Height="50" />
                 <RowDefinition Height="*" MinHeight="160" />
                 <RowDefinition Height="2" />
-                <RowDefinition Height="170" MinHeight="150" />
+                <RowDefinition Height="190" MinHeight="175" />
             </Grid.RowDefinitions>
 
             <!--#region// 顶部图标功能 //-->
@@ -252,18 +290,18 @@
             <GridSplitter Grid.Row="3" Height="2" VerticalAlignment="Stretch" />
             
             <!-- send message -->
-            <Grid Grid.Row="4" MinHeight="150">
+            <Grid Grid.Row="4" MinHeight="175">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="30" />
-                        <RowDefinition Height="Auto" MaxHeight="52" />
-                        <RowDefinition Height="*" />
                         <RowDefinition Height="34" />
+                        <RowDefinition Height="Auto" MaxHeight="58" />
+                        <RowDefinition Height="*" MinHeight="64" />
+                        <RowDefinition Height="42" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Height="30"  Orientation="Horizontal">
-                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Emoji16}" Width="38" Height="30"/>
-                        <ui:Button Command="{Binding FileBrowseCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Document16}" Width="38" Height="30"/>
+                    <StackPanel Grid.Row="0" Height="34" Orientation="Horizontal" Margin="4,2,4,0">
+                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Emoji16}" Width="38" Height="30" ToolTip="表情贴纸还在打扮中"/>
+                        <ui:Button Command="{Binding FileBrowseCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Document16}" Width="38" Height="30" ToolTip="添加文件或图片"/>
                         <ui:Button Command="{Binding ScreenShareCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=ScreenCut20}" Width="38" Height="30" ToolTip="{Binding ScreenShareButtonToolTip}"/>
                         <ComboBox ItemsSource="{Binding ScreenShareResolutions}"
                                   SelectedItem="{Binding SelectedScreenShareResolution, Mode=TwoWay}"
@@ -272,8 +310,8 @@
                                   Height="26"
                                   Margin="2,2,6,2"
                                   ToolTip="屏幕共享分辨率"/>
-                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=MoviesAndTv16}" Width="38" Height="30"/>
-                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Camera16}" Width="38" Height="30"/>
+                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=MoviesAndTv16}" Width="38" Height="30" ToolTip="视频功能还在准备中"/>
+                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Camera16}" Width="38" Height="30" ToolTip="拍照功能还在准备中"/>
                     </StackPanel>
                     <ScrollViewer Grid.Row="1"
                                   MaxHeight="52"
@@ -330,6 +368,7 @@
                                                        Background="Transparent"
                                                        BorderBrush="Transparent"
                                                        Content="{ui:SymbolIcon Symbol=Dismiss12}"
+                                                       ToolTip="从待发送里移除"
                                                        Command="{Binding DataContext.RemovePendingFileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                        CommandParameter="{Binding}"/>
                                         </Grid>
@@ -338,24 +377,34 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    <ScrollViewer Grid.Row="2" Focusable="False">
-                        <RichTextBox AllowDrop="True" extensions:RichTextBoxExtensions.Document="{Binding SendMsg,Mode=TwoWay}" 
-                                     Background="Transparent" BorderBrush="Transparent" BorderThickness="0" 
-                                     AcceptsReturn="True"
-                                     PreviewKeyDown="RichTextBox_PreviewKeyDown"
-                                     PreviewDragOver="RichTextBox_PreviewDragOver"
-                                     Drop="RichTextBox_Drop">
-                            <RichTextBox.InputBindings>
-                                <KeyBinding Key="Enter" Command="{Binding SendCommand}"/>
-                            </RichTextBox.InputBindings>
-                        </RichTextBox>
-                    </ScrollViewer>
-                    <StackPanel Grid.Row="3" Height="30" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <ui:Button  FontSize="20" HorizontalAlignment="Center"  VerticalAlignment="Center"
-                            Icon="{ui:SymbolIcon Symbol=Send16}"
-                            Command="{Binding SendCommand}"
-                            Content="发送" />
-                    </StackPanel>
+                    <RichTextBox Grid.Row="2"
+                                 Margin="8,4,8,4"
+                                 MinHeight="64"
+                                 AllowDrop="True"
+                                 Style="{StaticResource ChatEditorRichTextBoxStyle}"
+                                 extensions:RichTextBoxExtensions.Document="{Binding SendMsg,Mode=TwoWay}"
+                                 AcceptsReturn="True"
+                                 PreviewKeyDown="RichTextBox_PreviewKeyDown"
+                                 PreviewDragOver="RichTextBox_PreviewDragOver"
+                                 Drop="RichTextBox_Drop"
+                                 ToolTip="输入消息，Enter 发送，Shift+Enter 换行">
+                        <RichTextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding SendCommand}"/>
+                        </RichTextBox.InputBindings>
+                    </RichTextBox>
+                    <Grid Grid.Row="3">
+                        <ui:Button HorizontalAlignment="Right"
+                                   VerticalAlignment="Bottom"
+                                   Margin="0,0,5,5"
+                                   Style="{StaticResource CuteSendButtonStyle}"
+                                   Command="{Binding SendCommand}"
+                                   ToolTip="发送给当前聊天对象">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="Send16" Margin="0,0,6,0"/>
+                                <TextBlock Text="发送"/>
+                            </StackPanel>
+                        </ui:Button>
+                    </Grid>
                 </Grid>
             </Grid>
         </Grid>

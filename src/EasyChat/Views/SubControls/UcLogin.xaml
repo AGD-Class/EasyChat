@@ -21,15 +21,18 @@
                             Command="{Binding BackCommand}"
                             CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                             HorizontalAlignment="Left"
+                            ToolTip="返回身份选择"
                             Style="{DynamicResource LoginBtnStyle}" />
                     <StackPanel Orientation="Horizontal">
                         <Button Content="-"
                                 Command="{Binding MinimizeCommand}"
                                 CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                                ToolTip="最小化窗口"
                                 Style="{DynamicResource LoginBtnStyle}" />
                         <Button Content="X"
                                 Command="{Binding CloseCommand}"
                                 CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                                ToolTip="关闭 EasyChat"
                                 Style="{DynamicResource LoginBtnStyle}" />
                     </StackPanel>
                 </StackPanel>
@@ -66,6 +69,7 @@
                     Width="100"
                     Command="{Binding LoginCommand}"
                     CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                    ToolTip="连接服务器，开始聊天"
                     Style="{DynamicResource LoginBtnStyle}" />
         </StackPanel>
     </Grid>

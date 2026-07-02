@@ -11,8 +11,10 @@
                            TextAlignment="Center" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,14,0,0">
                     <Button x:Name="OkButton" Content="好(*╹▽╹*)~" Width="88" Height="30"
+                            ToolTip="确认，就这么办"
                             Background="Pink" Foreground="White" Click="OkButton_Click" />
                     <Button x:Name="CancelButton" Content="取消" Width="88" Height="30" Margin="8,0,0,0"
+                            ToolTip="取消这次操作"
                             Background="White" Foreground="Pink" BorderBrush="Pink" Click="CancelButton_Click"
                             Visibility="Collapsed" />
                 </StackPanel>

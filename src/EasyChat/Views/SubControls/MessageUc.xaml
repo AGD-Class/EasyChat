@@ -188,28 +188,45 @@
                                                 </Style.Triggers>
                                             </Style>
                                         </Button.Style>
-                                        <StackPanel Orientation="Horizontal" MaxWidth="260">
-                                            <Grid Width="72" Height="54" Margin="0,0,8,0">
-                                                <Image Source="{Binding ThumbnailImage}"
-                                                       Stretch="UniformToFill"
-                                                       Visibility="{Binding IsImage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                <Border CornerRadius="6"
-                                                        Background="#15000000"
-                                                        Visibility="{Binding IsImage, Converter={StaticResource BooleanToVisibilityReverseConverter}}">
-                                                    <TextBlock Text="FILE"
-                                                               FontSize="12"
-                                                               HorizontalAlignment="Center"
-                                                               VerticalAlignment="Center"/>
-                                                </Border>
-                                            </Grid>
-                                            <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding FileName}"
-                                                           TextWrapping="NoWrap"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           MaxWidth="160"/>
-                                                <TextBlock Text="{Binding FileSize}"
-                                                           Foreground="Gray"
-                                                           FontSize="11"/>
+                                        <StackPanel Orientation="Vertical" MaxWidth="260">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Grid Width="72" Height="54" Margin="0,0,8,0">
+                                                    <Image Source="{Binding ThumbnailImage}"
+                                                           Stretch="UniformToFill"
+                                                           Visibility="{Binding IsImage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                    <Border CornerRadius="6"
+                                                            Background="#15000000"
+                                                            Visibility="{Binding IsImage, Converter={StaticResource BooleanToVisibilityReverseConverter}}">
+                                                        <TextBlock Text="FILE"
+                                                                   FontSize="12"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding FileName}"
+                                                               TextWrapping="NoWrap"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               MaxWidth="160"/>
+                                                    <TextBlock Text="{Binding FileSize}"
+                                                               Foreground="Gray"
+                                                               FontSize="11"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <StackPanel Margin="0,8,0,0"
+                                                        Visibility="{Binding IsFileTransferVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <ProgressBar Minimum="0"
+                                                             Maximum="100"
+                                                             Height="7"
+                                                             Value="{Binding FileTransferProgress}"
+                                                             Background="#FFF6EAF0"
+                                                             Foreground="#FFFF82A3"
+                                                             BorderThickness="0" />
+                                                <TextBlock Text="{Binding FileTransferStatus}"
+                                                           Foreground="#FF82A3"
+                                                           FontSize="11"
+                                                           Margin="0,4,0,0"
+                                                           HorizontalAlignment="Right" />
                                             </StackPanel>
                                         </StackPanel>
                                     </Button>

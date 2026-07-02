@@ -2,6 +2,7 @@
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
+using System.Windows.Media;
 
 namespace EasyChat.Extensions
 {
@@ -22,7 +23,10 @@ namespace EasyChat.Extensions
                 //WPF的控件元素有且仅有一个父对象（如果不这样设置，会报错：Document已属于另一RichTextBox）
                 parent.Document = new FlowDocument();
             }
-            document.LineHeight = 1;
+            document.FontFamily = new FontFamily("Microsoft YaHei UI");
+            document.FontSize = 14;
+            document.LineHeight = 22;
+            document.PagePadding = new Thickness(0);
             Binding width_bind = new Binding
             {
                 RelativeSource = new RelativeSource

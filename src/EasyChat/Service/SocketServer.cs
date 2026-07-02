@@ -8,10 +8,12 @@ namespace EasyChat.Service
     public class SocketServer
     {
         private static SocketServer? _instance;
-        private readonly ConcurrentQueue<string> _pendingSavePaths = new();
+        private readonly ConcurrentQueue<ReceiveFileRequest> _pendingReceiveRequests = new();
         private readonly object _receiveLock = new();
         private readonly TcpListener _tcpListener;
         private bool _isReceiving;
+
+        private sealed record ReceiveFileRequest(string SavePath, IProgress<double>? Progress);
 
         private SocketServer(int port)
         {
@@ -37,9 +39,9 @@ namespace EasyChat.Service
             }
         }
 
-        public Task StartReceiveAsync(string savePath)
+        public Task StartReceiveAsync(string savePath, IProgress<double>? progress = null)
         {
-            _pendingSavePaths.Enqueue(savePath);
+            _pendingReceiveRequests.Enqueue(new ReceiveFileRequest(savePath, progress));
             EnsureReceiveLoop();
             return Task.CompletedTask;
         }
@@ -62,10 +64,10 @@ namespace EasyChat.Service
         {
             try
             {
-                while (_pendingSavePaths.TryDequeue(out var savePath))
+                while (_pendingReceiveRequests.TryDequeue(out var request))
                 {
                     var client = await _tcpListener.AcceptTcpClientAsync();
-                    await ReceiveFileAsync(client, savePath);
+                    await ReceiveFileAsync(client, request.SavePath, request.Progress);
                 }
             }
             finally
@@ -73,7 +75,7 @@ namespace EasyChat.Service
                 lock (_receiveLock)
                 {
                     _isReceiving = false;
-                    if (!_pendingSavePaths.IsEmpty)
+                    if (!_pendingReceiveRequests.IsEmpty)
                     {
                         EnsureReceiveLoop();
                     }
@@ -81,35 +83,42 @@ namespace EasyChat.Service
             }
         }
 
-        private static async Task ReceiveFileAsync(TcpClient client, string savePath)
+        private static async Task ReceiveFileAsync(TcpClient client, string savePath, IProgress<double>? progress = null)
         {
             try
             {
+                progress?.Report(0);
                 await using var networkStream = client.GetStream();
                 networkStream.ReadTimeout = 5000;
 
                 var fileNameLengthBuffer = new byte[4];
-                await networkStream.ReadAsync(fileNameLengthBuffer, 0, fileNameLengthBuffer.Length);
+                await networkStream.ReadExactlyAsync(fileNameLengthBuffer, 0, fileNameLengthBuffer.Length);
                 var fileNameLength = BitConverter.ToInt32(fileNameLengthBuffer, 0);
 
                 var fileNameBuffer = new byte[fileNameLength];
-                await networkStream.ReadAsync(fileNameBuffer, 0, fileNameBuffer.Length);
+                await networkStream.ReadExactlyAsync(fileNameBuffer, 0, fileNameBuffer.Length);
 
                 var fileSizeBuffer = new byte[8];
-                await networkStream.ReadAsync(fileSizeBuffer, 0, fileSizeBuffer.Length);
+                await networkStream.ReadExactlyAsync(fileSizeBuffer, 0, fileSizeBuffer.Length);
                 var fileSize = BitConverter.ToInt64(fileSizeBuffer, 0);
 
                 await using var fileStream = new FileStream(savePath, FileMode.Create, FileAccess.Write);
-                var buffer = new byte[81920];
+                var buffer = new byte[SocketClient.ChunkSize];
                 long totalBytesReceived = 0;
                 int bytesRead;
+                long receivedChunks = 0;
+                var totalChunks = SocketClient.GetTotalChunks(fileSize);
 
                 while (totalBytesReceived < fileSize
                        && (bytesRead = await networkStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
                 {
                     await fileStream.WriteAsync(buffer, 0, bytesRead);
                     totalBytesReceived += bytesRead;
+                    receivedChunks++;
+                    progress?.Report(Math.Clamp(receivedChunks * 100d / totalChunks, 0, 100));
                 }
+
+                progress?.Report(100);
             }
             catch (Exception ex)
             {

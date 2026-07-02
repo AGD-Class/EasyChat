@@ -21,8 +21,8 @@
         </Grid>
         <Grid Grid.Row="2">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,0">
-                <Button Content="发送" Width="80" Margin="5" IsDefault="True" Click="OnSendClicked" />
-                <Button Content="取消" Width="80" Margin="5" IsCancel="True" Click="OnCancelClicked" />
+                <Button Content="发送" Width="80" Margin="5" IsDefault="True" ToolTip="确认发送这些文件" Click="OnSendClicked" />
+                <Button Content="取消" Width="80" Margin="5" IsCancel="True" ToolTip="取消这次文件发送" Click="OnCancelClicked" />
             </StackPanel>
         </Grid>
     </Grid>

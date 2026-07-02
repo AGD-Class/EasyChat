@@ -41,6 +41,12 @@ public partial class ChatMessage : ObservableObject
 
     [ObservableProperty] private bool isReceived;
 
+    [ObservableProperty] private bool isFileTransferVisible;
+
+    [ObservableProperty] private double fileTransferProgress;
+
+    [ObservableProperty] private string fileTransferStatus = "";
+
     [ObservableProperty] private string senderUid = "";
 
     [ObservableProperty] private string senderIpAddress = "";

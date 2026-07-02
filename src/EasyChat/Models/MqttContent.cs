@@ -33,9 +33,11 @@ public static class MqttContent
     public const string SCREEN_SHARE_ACCEPT = "accept";
     public const string SCREEN_SHARE_REJECT = "reject";
     public const string SCREEN_SHARE_STOP = "stop";
+    public const string SCREEN_SHARE_RESOLUTION_CHANGE = "resolution_change";
     public const string SCREEN_CONTROL_REQUEST = "control_request";
     public const string SCREEN_CONTROL_ACCEPT = "control_accept";
     public const string SCREEN_CONTROL_REJECT = "control_reject";
+    public const string SCREEN_CONTROL_REVOKE = "control_revoke";
     public const string SCREEN_CONTROL_RELEASE = "control_release";
     public const string SCREEN_CONTROL_INPUT = "control_input";
     public const string SCREEN_CONTROL_MOUSE_MOVE = "mouse_move";

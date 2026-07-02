@@ -21,10 +21,12 @@
                     <Button Content="-"
                             Command="{Binding MinimizeCommand}"
                             CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                            ToolTip="最小化窗口"
                             Style="{DynamicResource LoginBtnStyle}" />
                     <Button Content="X"
                             Command="{Binding CloseCommand}"
                             CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                            ToolTip="关闭 EasyChat"
                             Style="{DynamicResource LoginBtnStyle}" />
                 </StackPanel>
             </Grid>
@@ -61,12 +63,12 @@
                         HorizontalAlignment="Center">
                 <Button Margin="0,0,10,0"
                         Content="Server"
-                        Width="100"  ToolTip="选择这个按钮同时成为服务器和客户端，但是只能存在一个服务器"
+                        Width="100"  ToolTip="作为服务器启动，同时也能聊天哦"
                         Command="{Binding ServerCommand}"
                         CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                         Style="{DynamicResource LoginBtnStyle}" />
                 <Button Content="Client"
-                        Width="100" ToolTip="选择这个按钮成为客户端，需要服务器IP"
+                        Width="100" ToolTip="作为客户端加入，需要填写服务器 IP"
                         Command="{Binding ClientCommand}"
                         CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                         Style="{DynamicResource LoginBtnStyle}" />

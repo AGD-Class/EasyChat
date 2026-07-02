@@ -10,6 +10,21 @@
         Background="#111111"
         PreviewKeyDown="Window_PreviewKeyDown"
         PreviewKeyUp="Window_PreviewKeyUp">
+    <Window.Resources>
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="MinWidth" Value="76" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="#F3F4F6" />
+            <Setter Property="Foreground" Value="#111827" />
+        </Style>
+        <Style x:Key="ToolbarComboBox" TargetType="ComboBox">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Width" Value="92" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
     <Grid Background="#111111">
         <Image x:Name="ScreenImage"
                Stretch="Uniform"
@@ -20,9 +35,42 @@
                MouseUp="ScreenImage_MouseUp"
                MouseWheel="ScreenImage_MouseWheel" />
 
+        <Border HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Margin="0,14,0,0"
+                Padding="10"
+                CornerRadius="8"
+                Background="#EE111827"
+                BorderBrush="#33FFFFFF"
+                BorderThickness="1">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="屏幕共享"
+                           Foreground="White"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           Margin="0,0,12,0" />
+                <ComboBox x:Name="ResolutionComboBox"
+                          Style="{StaticResource ToolbarComboBox}"
+                          DisplayMemberPath="Name"
+                          SelectionChanged="ResolutionComboBox_SelectionChanged"
+                          ToolTip="实时切换共享分辨率" />
+                <Button x:Name="ControlButton"
+                        Style="{StaticResource ToolbarButton}"
+                        Content="请求控制"
+                        Margin="8,0,0,0"
+                        ToolTip="向对方申请远程控制"
+                        Click="ControlButton_Click" />
+                <Button Content="关闭"
+                        Style="{StaticResource ToolbarButton}"
+                        Margin="8,0,0,0"
+                        ToolTip="关闭屏幕共享窗口"
+                        Click="CloseButton_Click" />
+            </StackPanel>
+        </Border>
+
         <Border x:Name="StatusBorder"
                 HorizontalAlignment="Left"
-                VerticalAlignment="Top"
+                VerticalAlignment="Bottom"
                 Margin="16"
                 Padding="12,8"
                 CornerRadius="6"
@@ -32,19 +80,5 @@
                        Foreground="White"
                        FontSize="14" />
         </Border>
-
-        <StackPanel Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Margin="16">
-            <Button x:Name="ControlButton"
-                    Content="请求控制"
-                    Padding="14,6"
-                    Margin="0,0,8,0"
-                    Click="ControlButton_Click" />
-            <Button Content="关闭"
-                    Padding="14,6"
-                    Click="CloseButton_Click" />
-        </StackPanel>
     </Grid>
 </Window>

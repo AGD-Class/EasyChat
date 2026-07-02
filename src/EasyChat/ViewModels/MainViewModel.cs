@@ -32,6 +32,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SocketServer _socketServer;
     private string _sendTopic = string.Empty;
     private ScreenShareServer? _screenShareServer;
+    private ScreenShareStatusView? _screenShareStatusView;
     private ScreenShareView? _screenShareView;
     private string _screenShareSessionId = string.Empty;
     private string _screenShareTargetUid = string.Empty;
@@ -154,12 +155,18 @@ public partial class MainViewModel : ObservableObject
                 case MqttContent.SCREEN_SHARE_STOP:
                     HandleScreenShareStop(msgModel);
                     break;
+                case MqttContent.SCREEN_SHARE_RESOLUTION_CHANGE:
+                    HandleScreenShareResolutionChange(msgModel);
+                    break;
                 case MqttContent.SCREEN_CONTROL_REQUEST:
                     HandleScreenControlRequest(msgModel);
                     break;
                 case MqttContent.SCREEN_CONTROL_ACCEPT:
                 case MqttContent.SCREEN_CONTROL_REJECT:
                     HandleScreenControlResponse(msgModel);
+                    break;
+                case MqttContent.SCREEN_CONTROL_REVOKE:
+                    HandleScreenControlRevoke(msgModel);
                     break;
                 case MqttContent.SCREEN_CONTROL_RELEASE:
                     HandleScreenControlRelease(msgModel);
@@ -269,7 +276,9 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
-            _ = _socketServer.StartReceiveAsync(localFilePath);
+            StartFileTransfer(chats, "准备接收");
+            var progress = CreateFileTransferProgress(chats, "接收中", "接收完成");
+            _ = _socketServer.StartReceiveAsync(localFilePath, progress);
             _myClient.SendMsg(MqttContent.FILE, new MsgModel
             {
                 userModel = MqttContent.ToUserModel(MyChatModel),
@@ -286,6 +295,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            FailFileTransfer(chats, "接收失败");
             System.Diagnostics.Debug.WriteLine($"文件处理发生错误: {ex.Message}");
         }
     }
@@ -301,7 +311,99 @@ public partial class MainViewModel : ObservableObject
         }
 
         var socketClient = SocketClient.GetInctance(newMsg.userModel.ipAddress, newMsg.userModel.port);
-        _ = socketClient.SendFileAsync(filePath);
+        ChatMessage? transferMessage = null;
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            transferMessage = FindOutgoingFileMessage(filePath);
+        });
+
+        StartFileTransfer(transferMessage, "准备发送");
+        var progress = CreateFileTransferProgress(transferMessage, "发送中", "发送完成");
+        _ = SendFileWithProgressAsync(socketClient, filePath, transferMessage, progress);
+    }
+
+    private async Task SendFileWithProgressAsync(
+        SocketClient socketClient,
+        string filePath,
+        ChatMessage? transferMessage,
+        IProgress<double> progress)
+    {
+        var sent = await socketClient.SendFileAsync(filePath, progress);
+        if (!sent)
+        {
+            FailFileTransfer(transferMessage, "发送失败");
+        }
+    }
+
+    private ChatMessage? FindOutgoingFileMessage(string filePath)
+    {
+        return _chatMessageDic.Values
+            .SelectMany(messages => messages)
+            .LastOrDefault(message => message.IsMyMessage
+                                      && message.IsFile
+                                      && string.Equals(message.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private IProgress<double> CreateFileTransferProgress(
+        ChatMessage? message,
+        string activeStatus,
+        string completedStatus)
+    {
+        return new Progress<double>(progress =>
+            UpdateFileTransferProgress(message, progress, activeStatus, completedStatus));
+    }
+
+    private void StartFileTransfer(ChatMessage? message, string status)
+    {
+        UpdateChatMessageOnUi(message, target =>
+        {
+            target.IsFileTransferVisible = true;
+            target.FileTransferProgress = 0;
+            target.FileTransferStatus = status;
+        });
+    }
+
+    private void UpdateFileTransferProgress(
+        ChatMessage? message,
+        double progress,
+        string activeStatus,
+        string completedStatus)
+    {
+        UpdateChatMessageOnUi(message, target =>
+        {
+            var normalizedProgress = Math.Clamp(progress, 0, 100);
+            target.IsFileTransferVisible = true;
+            target.FileTransferProgress = normalizedProgress;
+            target.FileTransferStatus = normalizedProgress >= 100
+                ? completedStatus
+                : $"{activeStatus} {normalizedProgress:0}%";
+        });
+    }
+
+    private void FailFileTransfer(ChatMessage? message, string status)
+    {
+        UpdateChatMessageOnUi(message, target =>
+        {
+            target.IsFileTransferVisible = true;
+            target.FileTransferStatus = status;
+        });
+    }
+
+    private static void UpdateChatMessageOnUi(ChatMessage? message, Action<ChatMessage> update)
+    {
+        if (message == null)
+        {
+            return;
+        }
+
+        var dispatcher = Application.Current.Dispatcher;
+        if (dispatcher.CheckAccess())
+        {
+            update(message);
+            return;
+        }
+
+        dispatcher.InvokeAsync(() => update(message));
     }
 
     private void HandleScreenShareRequest(MsgModel msgModel)
@@ -336,7 +438,14 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        OpenScreenShareView(senderName, msgModel.screenShareSessionId, hostIp, msgModel.screenSharePort, msgModel.userModel.uid);
+        OpenScreenShareView(
+            senderName,
+            msgModel.screenShareSessionId,
+            hostIp,
+            msgModel.screenSharePort,
+            msgModel.userModel.uid,
+            msgModel.screenShareWidth,
+            msgModel.screenShareHeight);
         SendScreenShareSignal(
             MqttContent.SCREEN_SHARE_ACCEPT,
             msgModel.userModel.uid,
@@ -380,6 +489,22 @@ public partial class MainViewModel : ObservableObject
         EcMsgBox.Show($"{GetScreenShareSenderName(msgModel)} 已停止屏幕共享");
     }
 
+    private void HandleScreenShareResolutionChange(MsgModel msgModel)
+    {
+        if (_screenShareServer == null
+            || msgModel.screenShareSessionId != _screenShareSessionId
+            || msgModel.screenShareWidth <= 0
+            || msgModel.screenShareHeight <= 0)
+        {
+            return;
+        }
+
+        _screenShareServer.SetResolution(msgModel.screenShareWidth, msgModel.screenShareHeight);
+        var resolution = FindResolutionOption(msgModel.screenShareWidth, msgModel.screenShareHeight);
+        SelectedScreenShareResolution = resolution;
+        _screenShareStatusView?.UpdateResolution(resolution.Name);
+    }
+
     private void HandleScreenControlRequest(MsgModel msgModel)
     {
         if (_screenShareServer == null || msgModel.screenShareSessionId != _screenShareSessionId)
@@ -409,6 +534,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         _screenShareControllerUid = requesterUid;
+        _screenShareStatusView?.UpdateController(requesterName);
         SendScreenShareSignal(MqttContent.SCREEN_CONTROL_ACCEPT, requesterUid, _screenShareSessionId);
         EcMsgBox.Show($"{requesterName} 已获得屏幕控制权");
     }
@@ -430,6 +556,16 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private void HandleScreenControlRevoke(MsgModel msgModel)
+    {
+        if (_screenShareView == null || msgModel.screenShareSessionId != _screenShareView.SessionId)
+        {
+            return;
+        }
+
+        _screenShareView.RevokeRemoteControl();
+    }
+
     private void HandleScreenControlRelease(MsgModel msgModel)
     {
         if (_screenShareServer == null
@@ -440,6 +576,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         _screenShareControllerUid = string.Empty;
+        _screenShareStatusView?.UpdateController("");
         EcMsgBox.Show($"{GetScreenShareSenderName(msgModel)} 已停止控制你的屏幕");
     }
 
@@ -469,6 +606,7 @@ public partial class MainViewModel : ObservableObject
             _screenShareTargetUid = _screenShareIsGroup ? string.Empty : ChatObj.Uid;
             _screenShareSessionId = Guid.NewGuid().ToString("N");
             IsScreenSharing = true;
+            ShowScreenShareStatus(resolution);
 
             SendScreenShareSignal(
                 MqttContent.SCREEN_SHARE_REQUEST,
@@ -500,6 +638,8 @@ public partial class MainViewModel : ObservableObject
 
         _screenShareServer?.Dispose();
         _screenShareServer = null;
+        _screenShareStatusView?.Close();
+        _screenShareStatusView = null;
         _screenShareTargetUid = string.Empty;
         _screenShareSessionId = string.Empty;
         _screenShareIsGroup = false;
@@ -512,11 +652,55 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    private void OpenScreenShareView(string senderName, string sessionId, string hostIp, int port, string ownerUid)
+    private void ShowScreenShareStatus(ScreenShareResolutionOption resolution)
+    {
+        _screenShareStatusView?.Close();
+
+        var statusView = new ScreenShareStatusView(resolution.Name);
+        statusView.StopShareRequested += () =>
+        {
+            StopLocalScreenShare(true);
+            EcMsgBox.Show("已停止屏幕共享");
+        };
+        statusView.DisconnectControlRequested += DisconnectCurrentScreenController;
+        statusView.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_screenShareStatusView, statusView))
+            {
+                _screenShareStatusView = null;
+            }
+        };
+
+        _screenShareStatusView = statusView;
+        statusView.Show();
+    }
+
+    private void DisconnectCurrentScreenController()
+    {
+        if (string.IsNullOrWhiteSpace(_screenShareControllerUid)
+            || string.IsNullOrWhiteSpace(_screenShareSessionId))
+        {
+            return;
+        }
+
+        var controllerUid = _screenShareControllerUid;
+        _screenShareControllerUid = string.Empty;
+        _screenShareStatusView?.UpdateController("");
+        SendScreenShareSignal(MqttContent.SCREEN_CONTROL_REVOKE, controllerUid, _screenShareSessionId);
+    }
+
+    private void OpenScreenShareView(
+        string senderName,
+        string sessionId,
+        string hostIp,
+        int port,
+        string ownerUid,
+        int width,
+        int height)
     {
         _screenShareView?.Close();
 
-        var view = new ScreenShareView(senderName, sessionId, new ScreenShareClient(hostIp, port));
+        var view = new ScreenShareView(senderName, sessionId, new ScreenShareClient(hostIp, port), width, height);
         var owner = Application.Current.Windows
             .OfType<Window>()
             .FirstOrDefault(window => window.IsActive);
@@ -538,6 +722,13 @@ public partial class MainViewModel : ObservableObject
             SendScreenShareSignal(MqttContent.SCREEN_CONTROL_RELEASE, ownerUid, sessionId);
         view.RemoteControlInput += input =>
             SendScreenControlInput(ownerUid, sessionId, input);
+        view.ResolutionChanged += resolution =>
+            SendScreenShareSignal(
+                MqttContent.SCREEN_SHARE_RESOLUTION_CHANGE,
+                ownerUid,
+                sessionId,
+                width: resolution.Width,
+                height: resolution.Height);
 
         _screenShareView = view;
         view.Show();
@@ -595,6 +786,12 @@ public partial class MainViewModel : ObservableObject
         return UserListVm.FindByUid(msgModel.userModel.uid)?.DisplayName
                ?? msgModel.userModel.nickName
                ?? msgModel.userModel.uid;
+    }
+
+    private ScreenShareResolutionOption FindResolutionOption(int width, int height)
+    {
+        return ScreenShareResolutions.FirstOrDefault(option => option.Width == width && option.Height == height)
+               ?? ScreenShareResolutions[1];
     }
 
     private BindingList<ChatMessage> EnsureMessageList(string uid)
@@ -977,6 +1174,17 @@ public partial class MainViewModel : ObservableObject
     ];
 
     [ObservableProperty] private ScreenShareResolutionOption _selectedScreenShareResolution = null!;
+
+    partial void OnSelectedScreenShareResolutionChanged(ScreenShareResolutionOption value)
+    {
+        if (_screenShareServer == null || value == null)
+        {
+            return;
+        }
+
+        _screenShareServer.SetResolution(value.Width, value.Height);
+        _screenShareStatusView?.UpdateResolution(value.Name);
+    }
 
     public UserListVm UserListVm { get; } = new();
 
