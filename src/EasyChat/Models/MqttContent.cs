@@ -35,6 +35,9 @@ public static class MqttContent
     public const string SCREEN_SHARE_STOP = "stop";
     public const string SCREEN_SHARE_RESOLUTION_CHANGE = "resolution_change";
     public const string SCREEN_CONTROL_REQUEST = "control_request";
+    public const string SCREEN_CONTROL_DIRECT_REQUEST = "control_direct_request";
+    public const string SCREEN_CONTROL_DIRECT_ACCEPT = "control_direct_accept";
+    public const string SCREEN_CONTROL_DIRECT_REJECT = "control_direct_reject";
     public const string SCREEN_CONTROL_ACCEPT = "control_accept";
     public const string SCREEN_CONTROL_REJECT = "control_reject";
     public const string SCREEN_CONTROL_REVOKE = "control_revoke";

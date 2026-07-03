@@ -51,6 +51,13 @@
             <StackPanel Grid.Column="2"
                         Orientation="Horizontal"
                         VerticalAlignment="Center">
+                <ComboBox x:Name="ResolutionComboBox"
+                          DisplayMemberPath="Name"
+                          Width="92"
+                          Height="30"
+                          Margin="0,0,8,0"
+                          ToolTip="屏幕共享分辨率"
+                          SelectionChanged="ResolutionComboBox_SelectionChanged" />
                 <Button x:Name="DisconnectControlButton"
                         Content="断开控制"
                         Width="88"

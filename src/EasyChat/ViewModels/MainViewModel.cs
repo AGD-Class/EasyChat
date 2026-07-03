@@ -161,6 +161,13 @@ public partial class MainViewModel : ObservableObject
                 case MqttContent.SCREEN_CONTROL_REQUEST:
                     HandleScreenControlRequest(msgModel);
                     break;
+                case MqttContent.SCREEN_CONTROL_DIRECT_REQUEST:
+                    HandleScreenControlDirectRequest(msgModel);
+                    break;
+                case MqttContent.SCREEN_CONTROL_DIRECT_ACCEPT:
+                case MqttContent.SCREEN_CONTROL_DIRECT_REJECT:
+                    HandleScreenControlDirectResponse(msgModel);
+                    break;
                 case MqttContent.SCREEN_CONTROL_ACCEPT:
                 case MqttContent.SCREEN_CONTROL_REJECT:
                     HandleScreenControlResponse(msgModel);
@@ -443,9 +450,7 @@ public partial class MainViewModel : ObservableObject
             msgModel.screenShareSessionId,
             hostIp,
             msgModel.screenSharePort,
-            msgModel.userModel.uid,
-            msgModel.screenShareWidth,
-            msgModel.screenShareHeight);
+            msgModel.userModel.uid);
         SendScreenShareSignal(
             MqttContent.SCREEN_SHARE_ACCEPT,
             msgModel.userModel.uid,
@@ -502,7 +507,7 @@ public partial class MainViewModel : ObservableObject
         _screenShareServer.SetResolution(msgModel.screenShareWidth, msgModel.screenShareHeight);
         var resolution = FindResolutionOption(msgModel.screenShareWidth, msgModel.screenShareHeight);
         SelectedScreenShareResolution = resolution;
-        _screenShareStatusView?.UpdateResolution(resolution.Name);
+        _screenShareStatusView?.SelectResolution(resolution);
     }
 
     private void HandleScreenControlRequest(MsgModel msgModel)
@@ -537,6 +542,76 @@ public partial class MainViewModel : ObservableObject
         _screenShareStatusView?.UpdateController(requesterName);
         SendScreenShareSignal(MqttContent.SCREEN_CONTROL_ACCEPT, requesterUid, _screenShareSessionId);
         EcMsgBox.Show($"{requesterName} 已获得屏幕控制权");
+    }
+
+    /// <summary>
+    /// 处理“主动申请控制”信令：被申请方确认后自动开启屏幕共享，并把控制权授予请求方。
+    /// </summary>
+    private void HandleScreenControlDirectRequest(MsgModel msgModel)
+    {
+        var requesterUid = msgModel.userModel.uid;
+        var requesterName = GetScreenShareSenderName(msgModel);
+
+        if (_screenShareServer != null
+            && !_screenShareIsGroup
+            && !string.IsNullOrWhiteSpace(_screenShareTargetUid)
+            && _screenShareTargetUid != requesterUid)
+        {
+            SendScreenShareSignal(MqttContent.SCREEN_CONTROL_DIRECT_REJECT, requesterUid, "");
+            EcMsgBox.Show($"正在向其他用户共享屏幕，已拒绝 {requesterName} 的控制请求");
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_screenShareControllerUid)
+            && _screenShareControllerUid != requesterUid)
+        {
+            SendScreenShareSignal(MqttContent.SCREEN_CONTROL_DIRECT_REJECT, requesterUid, _screenShareSessionId);
+            EcMsgBox.Show($"已有用户正在控制屏幕，已拒绝 {requesterName} 的请求");
+            return;
+        }
+
+        var accepted = EcMsgBox.Confirm(
+            $"{requesterName} 请求远程控制你的屏幕，是否允许？允许后会自动共享屏幕给对方。",
+            "允许",
+            "拒绝");
+
+        if (!accepted)
+        {
+            SendScreenShareSignal(MqttContent.SCREEN_CONTROL_DIRECT_REJECT, requesterUid, _screenShareSessionId);
+            return;
+        }
+
+        StartDirectControlShare(requesterUid, requesterName);
+    }
+
+    /// <summary>
+    /// 处理主动控制申请的结果：同意时直接打开对方屏幕并进入已授权控制状态。
+    /// </summary>
+    private void HandleScreenControlDirectResponse(MsgModel msgModel)
+    {
+        var senderName = GetScreenShareSenderName(msgModel);
+        if (msgModel.screenShareAction == MqttContent.SCREEN_CONTROL_DIRECT_REJECT)
+        {
+            EcMsgBox.Show($"{senderName} 拒绝了远程控制请求");
+            return;
+        }
+
+        var hostIp = string.IsNullOrWhiteSpace(msgModel.screenShareHostIp)
+            ? msgModel.userModel.ipAddress
+            : msgModel.screenShareHostIp;
+        if (string.IsNullOrWhiteSpace(hostIp) || msgModel.screenSharePort <= 0)
+        {
+            EcMsgBox.Show("远程控制连接信息无效");
+            return;
+        }
+
+        OpenScreenShareView(
+            senderName,
+            msgModel.screenShareSessionId,
+            hostIp,
+            msgModel.screenSharePort,
+            msgModel.userModel.uid);
+        _screenShareView?.GrantRemoteControl();
     }
 
     private void HandleScreenControlResponse(MsgModel msgModel)
@@ -630,6 +705,48 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// 主动控制被同意后，被控制方会在这里启动或复用屏幕共享，并把连接信息回传给请求方。
+    /// </summary>
+    private void StartDirectControlShare(string requesterUid, string requesterName)
+    {
+        try
+        {
+            var resolution = SelectedScreenShareResolution ?? ScreenShareResolutions[1];
+            if (_screenShareServer == null)
+            {
+                _screenShareServer = new ScreenShareServer(
+                    MqttContent.SCREEN_SHARE_PORT,
+                    resolution.Width,
+                    resolution.Height);
+                _screenShareServer.Start();
+                _screenShareIsGroup = false;
+                _screenShareTargetUid = requesterUid;
+                _screenShareSessionId = Guid.NewGuid().ToString("N");
+                IsScreenSharing = true;
+                ShowScreenShareStatus(resolution);
+            }
+
+            _screenShareControllerUid = requesterUid;
+            _screenShareStatusView?.UpdateController(requesterName);
+            SendScreenShareSignal(
+                MqttContent.SCREEN_CONTROL_DIRECT_ACCEPT,
+                requesterUid,
+                _screenShareSessionId,
+                MyChatModel.IpAddress,
+                _screenShareServer.Port,
+                width: resolution.Width,
+                height: resolution.Height);
+            EcMsgBox.Show($"{requesterName} 已获得屏幕控制权");
+        }
+        catch (Exception ex)
+        {
+            StopLocalScreenShare(false);
+            SendScreenShareSignal(MqttContent.SCREEN_CONTROL_DIRECT_REJECT, requesterUid, _screenShareSessionId);
+            EcMsgBox.Show($"远程控制启动失败：{ex.Message}");
+        }
+    }
+
     private void StopLocalScreenShare(bool notifyTarget)
     {
         var targetUid = _screenShareTargetUid;
@@ -656,13 +773,17 @@ public partial class MainViewModel : ObservableObject
     {
         _screenShareStatusView?.Close();
 
-        var statusView = new ScreenShareStatusView(resolution.Name);
+        var statusView = new ScreenShareStatusView(ScreenShareResolutions, resolution);
         statusView.StopShareRequested += () =>
         {
             StopLocalScreenShare(true);
             EcMsgBox.Show("已停止屏幕共享");
         };
         statusView.DisconnectControlRequested += DisconnectCurrentScreenController;
+        statusView.ResolutionChanged += resolution =>
+        {
+            SelectedScreenShareResolution = resolution;
+        };
         statusView.Closed += (_, _) =>
         {
             if (ReferenceEquals(_screenShareStatusView, statusView))
@@ -694,13 +815,11 @@ public partial class MainViewModel : ObservableObject
         string sessionId,
         string hostIp,
         int port,
-        string ownerUid,
-        int width,
-        int height)
+        string ownerUid)
     {
         _screenShareView?.Close();
 
-        var view = new ScreenShareView(senderName, sessionId, new ScreenShareClient(hostIp, port), width, height);
+        var view = new ScreenShareView(senderName, sessionId, new ScreenShareClient(hostIp, port));
         var owner = Application.Current.Windows
             .OfType<Window>()
             .FirstOrDefault(window => window.IsActive);
@@ -722,13 +841,6 @@ public partial class MainViewModel : ObservableObject
             SendScreenShareSignal(MqttContent.SCREEN_CONTROL_RELEASE, ownerUid, sessionId);
         view.RemoteControlInput += input =>
             SendScreenControlInput(ownerUid, sessionId, input);
-        view.ResolutionChanged += resolution =>
-            SendScreenShareSignal(
-                MqttContent.SCREEN_SHARE_RESOLUTION_CHANGE,
-                ownerUid,
-                sessionId,
-                width: resolution.Width,
-                height: resolution.Height);
 
         _screenShareView = view;
         view.Show();
@@ -1095,6 +1207,40 @@ public partial class MainViewModel : ObservableObject
         StartLocalScreenShare();
     }
 
+    /// <summary>
+    /// 主动向当前私聊对象申请远程控制；对方同意后会自动共享屏幕并授予控制权。
+    /// </summary>
+    [RelayCommand]
+    private void RequestScreenControl()
+    {
+        if (string.IsNullOrEmpty(ChatObj.Uid))
+        {
+            EcMsgBox.Show("先选择用户");
+            return;
+        }
+
+        if (ChatObj.IsGroup)
+        {
+            EcMsgBox.Show("主动远程控制仅支持私聊");
+            return;
+        }
+
+        if (ChatObj.Uid == MyChatModel.Uid)
+        {
+            EcMsgBox.Show("不能控制自己");
+            return;
+        }
+
+        if (!ChatObj.IsOnline)
+        {
+            EcMsgBox.Show("对方不在线");
+            return;
+        }
+
+        SendScreenShareSignal(MqttContent.SCREEN_CONTROL_DIRECT_REQUEST, ChatObj.Uid, "");
+        EcMsgBox.Show("已发送远程控制申请");
+    }
+
     [RelayCommand]
     private void Nothing()
     {
@@ -1183,7 +1329,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         _screenShareServer.SetResolution(value.Width, value.Height);
-        _screenShareStatusView?.UpdateResolution(value.Name);
+        _screenShareStatusView?.SelectResolution(value);
     }
 
     public UserListVm UserListVm { get; } = new();

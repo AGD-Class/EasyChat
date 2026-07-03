@@ -10,31 +10,18 @@ namespace EasyChat.Views;
 public partial class ScreenShareView
 {
     private readonly ScreenShareClient _client;
-    private readonly List<ScreenShareResolutionOption> _resolutionOptions =
-    [
-        new("480p", 854, 480),
-        new("720p", 1280, 720),
-        new("1080p", 1920, 1080)
-    ];
     private readonly CancellationTokenSource _cts = new();
-    private bool _isResolutionInitialized;
     private bool _hasRemoteControl;
     private bool _isControlRequestPending;
     private bool _hasFirstFrame;
     private DateTime _lastMouseMoveSent = DateTime.MinValue;
 
-    public ScreenShareView(
-        string shareOwnerName,
-        string sessionId,
-        ScreenShareClient client,
-        int initialWidth,
-        int initialHeight)
+    public ScreenShareView(string shareOwnerName, string sessionId, ScreenShareClient client)
     {
         InitializeComponent();
         _client = client;
         SessionId = sessionId;
         Title = $"{shareOwnerName} 的屏幕共享";
-        InitResolutionOptions(initialWidth, initialHeight);
         _client.FrameReceived += ClientFrameReceived;
         Loaded += ScreenShareView_Loaded;
     }
@@ -46,18 +33,6 @@ public partial class ScreenShareView
     public event Action? RemoteControlReleased;
 
     public event Action<ScreenControlInputEvent>? RemoteControlInput;
-
-    public event Action<ScreenShareResolutionOption>? ResolutionChanged;
-
-    private void InitResolutionOptions(int initialWidth, int initialHeight)
-    {
-        ResolutionComboBox.ItemsSource = _resolutionOptions;
-        var selected = _resolutionOptions.FirstOrDefault(option =>
-            option.Width == initialWidth && option.Height == initialHeight)
-            ?? _resolutionOptions[1];
-        ResolutionComboBox.SelectedItem = selected;
-        _isResolutionInitialized = true;
-    }
 
     public void GrantRemoteControl()
     {
@@ -181,17 +156,6 @@ public partial class ScreenShareView
         ControlButton.Content = "等待同意";
         ShowStatus("已发送远程控制请求");
         RemoteControlRequested?.Invoke();
-    }
-
-    private void ResolutionComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
-    {
-        if (!_isResolutionInitialized || ResolutionComboBox.SelectedItem is not ScreenShareResolutionOption resolution)
-        {
-            return;
-        }
-
-        ShowStatus($"正在切换到 {resolution.Name}");
-        ResolutionChanged?.Invoke(resolution);
     }
 
     private void ScreenImage_MouseMove(object sender, MouseEventArgs e)

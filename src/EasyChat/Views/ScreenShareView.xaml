@@ -19,11 +19,6 @@
             <Setter Property="Background" Value="#F3F4F6" />
             <Setter Property="Foreground" Value="#111827" />
         </Style>
-        <Style x:Key="ToolbarComboBox" TargetType="ComboBox">
-            <Setter Property="Height" Value="30" />
-            <Setter Property="Width" Value="92" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-        </Style>
     </Window.Resources>
     <Grid Background="#111111">
         <Image x:Name="ScreenImage"
@@ -49,15 +44,10 @@
                            FontWeight="SemiBold"
                            VerticalAlignment="Center"
                            Margin="0,0,12,0" />
-                <ComboBox x:Name="ResolutionComboBox"
-                          Style="{StaticResource ToolbarComboBox}"
-                          DisplayMemberPath="Name"
-                          SelectionChanged="ResolutionComboBox_SelectionChanged"
-                          ToolTip="实时切换共享分辨率" />
                 <Button x:Name="ControlButton"
                         Style="{StaticResource ToolbarButton}"
                         Content="请求控制"
-                        Margin="8,0,0,0"
+                        Margin="0,0,0,0"
                         ToolTip="向对方申请远程控制"
                         Click="ControlButton_Click" />
                 <Button Content="关闭"

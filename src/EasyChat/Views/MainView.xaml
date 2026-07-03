@@ -310,8 +310,8 @@
                                   Height="26"
                                   Margin="2,2,6,2"
                                   ToolTip="屏幕共享分辨率" Visibility="Collapsed"/>
-                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=ScreenCut20}" Width="38" Height="30" ToolTip="截图功能绝赞开发中"/>
-                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Camera16}" Width="38" Height="30" ToolTip="拍照功能还在准备中"/>
+                        <ui:Button Command="{Binding RequestScreenControlCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Camera16}" Width="38" Height="30" ToolTip="申请控制对方屏幕"/>
+                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=ScreenCut20}" Width="38" Height="30" ToolTip="截图功能还在准备中"/>
                     </StackPanel>
                     <ScrollViewer Grid.Row="1"
                                   MaxHeight="52"
