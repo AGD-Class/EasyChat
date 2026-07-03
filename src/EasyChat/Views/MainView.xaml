@@ -302,15 +302,15 @@
                     <StackPanel Grid.Row="0" Height="34" Orientation="Horizontal" Margin="4,2,4,0">
                         <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Emoji16}" Width="38" Height="30" ToolTip="表情贴纸还在打扮中"/>
                         <ui:Button Command="{Binding FileBrowseCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Document16}" Width="38" Height="30" ToolTip="添加文件或图片"/>
-                        <ui:Button Command="{Binding ScreenShareCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=ScreenCut20}" Width="38" Height="30" ToolTip="{Binding ScreenShareButtonToolTip}"/>
+                        <ui:Button Command="{Binding ScreenShareCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=MoviesAndTv16}" Width="38" Height="30" ToolTip="{Binding ScreenShareButtonToolTip}"/>
                         <ComboBox ItemsSource="{Binding ScreenShareResolutions}"
                                   SelectedItem="{Binding SelectedScreenShareResolution, Mode=TwoWay}"
                                   DisplayMemberPath="Name"
                                   Width="82"
                                   Height="26"
                                   Margin="2,2,6,2"
-                                  ToolTip="屏幕共享分辨率"/>
-                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=MoviesAndTv16}" Width="38" Height="30" ToolTip="视频功能还在准备中"/>
+                                  ToolTip="屏幕共享分辨率" Visibility="Collapsed"/>
+                        <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=ScreenCut20}" Width="38" Height="30" ToolTip="截图功能绝赞开发中"/>
                         <ui:Button Command="{Binding NothingCommand}" Background="Transparent" BorderBrush="Transparent" Content="{ui:SymbolIcon Symbol=Camera16}" Width="38" Height="30" ToolTip="拍照功能还在准备中"/>
                     </StackPanel>
                     <ScrollViewer Grid.Row="1"
